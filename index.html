@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0E7C46">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="En Verde">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>En Verde</title>
 <style>
 /* En Verde. Disposición: una columna del ancho de un teléfono; arriba el resumen, en medio la lista,
@@ -701,6 +708,23 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 .edit24 { margin: 10px 4px 0; font-size: 13px; color: var(--muted); text-align: center; }
 .go.go2 { margin-top: 4px; background: transparent; color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); min-height: 52px; font-size: 18px; }
 .ap.small { margin-top: 18px; font-size: 14px; opacity: .8; }
+/* términos, bloquear, reportar, borrar cuenta */
+.aterms { display: flex; align-items: flex-start; gap: 10px; margin: 6px 2px 4px; font-size: 15px; }
+.aterms.bad .tick { border-color: var(--loss); }
+.tick { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--axis); background: var(--surface); display: grid; place-items: center; color: transparent; }
+.tick svg { width: 18px; height: 18px; }
+.tick.on { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.afe.tmerr { display: block; margin: 0 2px 8px 40px; }
+.terms h4 { margin: 18px 0 4px; font-size: 16px; font-weight: 800; }
+.terms p, .terms li { font-size: 15px; }
+.chtools { display: flex; gap: 14px; margin-top: 4px; }
+.chtools .alink { color: var(--muted); font-size: 14px; font-weight: 700; }
+.set.dangerrow .st { color: var(--loss); }
+.tx.sm { min-height: 80px; font: 15px/1.4 inherit; font-family: inherit; }
+.repev { margin-top: 6px; font-size: 13px; }
+.repev summary { cursor: pointer; font-weight: 700; color: var(--brand); }
+.repev div { padding: 4px 0; border-top: 1px solid var(--line); }
+.repev small { color: var(--muted); }
 
 </style>
 </head>
@@ -1946,12 +1970,13 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return b && s;
   }
   /* El código puede venir como el apodo, como enverde.app/r/<apodo> o con @ delante. */
+  var WEB = 'novacenterapp.github.io/en-verde/';          // dirección de la app (GitHub Pages)
   function refFrom(s) {
-    var t = String(s == null ? '' : s).trim(), m = /\/r\/([^\/?#\s]+)/i.exec(t);
-    if (m) t = m[1];
+    var t = String(s == null ? '' : s).trim(), m = /[?&]r=([^&#\s]+)/i.exec(t) || /\/r\/([^\/?#\s]+)/i.exec(t);
+    if (m) { try { t = decodeURIComponent(m[1]); } catch (e) { t = m[1]; } }
     return slug(t.replace(/^@/, ''));
   }
-  function refLink(acc) { return 'enverde.app/r/' + slug(acc.nick); }
+  function refLink(acc) { return WEB + '?r=' + slug(acc.nick); }
 
   function addGems(acc, n, why, now) {
     acc.gems = Math.max(0, (acc.gems || 0) + n);
@@ -2015,7 +2040,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     sha256: sha256, normEmail: normEmail, validEmail: validEmail, maskEmail: maskEmail, slug: slug, nickError: nickError,
     normPhone: normPhone, passError: passError, hashPass: hashPin, hashPin: hashPin, randHex: randHex, newCode: newCode, cashCode: cashCode, normCash: normCash, normTmOp: normTmOp,
     monthStart: monthStart, nextMonth: nextMonth, monthKey: monthKey, monthName: monthName, dueAt: dueAt,
-    trialEnd: trialEnd, months: months, state: state, hasBuyAndSell: hasBuyAndSell, refFrom: refFrom, refLink: refLink, addGems: addGems
+    trialEnd: trialEnd, months: months, state: state, hasBuyAndSell: hasBuyAndSell, refFrom: refFrom, refLink: refLink, WEB: WEB, addGems: addGems
   };
 });
 
@@ -2675,7 +2700,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         navRow('sheet-open', 'data-sheet="restore"', 'Restaurar desde un respaldo', 'Pega el texto o elige el archivo.') + '</div>';
     }
     h += '<div class="group"><div class="gh">Comunidad</div>' + tgLink('set tgrow', 'Canal de En Verde en Telegram<small>Únete para estar al día con las novedades</small>') + '</div>';
-    h += '<div class="group"><div class="gh">Ayuda</div>' + navRow('sheet-open', 'data-sheet="how"', 'Cómo se calculan las ganancias', 'Costo promedio y ganancia de cada venta.') + '</div>';
+    h += '<div class="group"><div class="gh">Ayuda</div>' + navRow('sheet-open', 'data-sheet="how"', 'Cómo se calculan las ganancias', 'Costo promedio y ganancia de cada venta.') +
+      (REMOTE && !standalone() ? navRow('sheet-open', 'data-sheet="install"', 'Ponerla en la pantalla de inicio', 'Ábrela como una app, aunque no tengas internet.') : '') + '</div>';
     h += '<div class="group"><div class="gh">Probar</div>' + (S.mode === 'demo'
       ? navRow('demo-off', '', 'Salir del ejemplo', 'Volver a tus operaciones.')
       : navRow('demo-on', '', 'Ver con datos de ejemplo', 'Una semana inventada. No toca tus datos.')) + '</div>';
@@ -2692,6 +2718,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var k = S.sheet;
     S.sheet = null; $('#sheet').innerHTML = ''; S.pf = null; S.tgHi = null; drawToast();
     if (k === 'pay') { S.pay = null; openSheet('fee'); return; }
+    if (k === 'report' && S.chat) { S.rp = null; openSheet('chat'); return; }
+    if (k === 'terms' && S.termsAsk) { S.termsAsk = false; }
     if (k === 'chat' && S.chatFrom === 'msgs') { S.chat = null; S.chatFrom = null; render(); openSheet('msgs'); return; }
     if (k === 'chat' || k === 'offer-new' || k === 'msgs') { S.chat = null; if (me()) render(); }
     if (k === 'zone') { S.zoneAsked = true; S.zoneFirst = false; S.afterZone = null; savePrefs(); render(); }   // cerrar la lista = "ahora no"
@@ -2714,6 +2742,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     } else if (k === 'offer-new') { title = 'Publicar oferta'; body = ofNewBody();
     } else if (k === 'chat') { title = 'Mensajes'; bodyCls += ' chsheet'; body = chatBody();
     } else if (k === 'msgs') { title = 'Mensajes'; body = msgsBody();
+    } else if (k === 'terms') { title = 'Términos y privacidad'; body = termsBody();
+    } else if (k === 'report') { title = 'Reportar'; body = reportBody();
+    } else if (k === 'blocks') { title = 'Personas bloqueadas'; body = blocksBody();
+    } else if (k === 'install') { title = 'Tenerla como app'; body = installBody();
     } else if (k === 'share') {
       title = 'Qué se comparte'; body = shareBody();
     } else if (k === 'scanhow') {
@@ -3475,8 +3507,12 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         (A.err.phone ? '<span class="afe">' + esc(A.err.phone) + '</span>' : '') + '</label>' +
         passFields('a-pass', 'pass', 'pass2', 'Contraseña', 'new-password', 'Al menos 8 caracteres, con letras y números. Con ella entras junto con tu correo.') +
         field('a-ref', 'ref', 'Código de invitación <i>(opcional)</i>', 'Si te invitaron, ganas 1 gema.', 'type="text" autocapitalize="off" spellcheck="false" maxlength="60" placeholder="apodo de quien te invitó"') +
-        '</div>' + (A.err.top ? '<div class="aerr" role="alert">' + A.err.top + '</div>' : '') +
-        '<button class="go" data-act="reg-go">Enviarme el código</button>' +
+        '</div>' +
+        '<div class="aterms' + (A.err.terms ? ' bad' : '') + '"><button class="tick' + (A.f.terms ? ' on' : '') + '" id="a-terms" role="checkbox" aria-checked="' + !!A.f.terms + '" data-act="terms-tick">' + I.check + '</button>' +
+        '<span>Acepto los <button class="alink in" data-act="sheet-open" data-sheet="terms">términos y la privacidad</button> de En Verde.</span></div>' +
+        (A.err.terms ? '<span class="afe tmerr">' + esc(A.err.terms) + '</span>' : '') +
+        (A.err.top ? '<div class="aerr" role="alert">' + A.err.top + '</div>' : '') +
+        '<button class="go" data-act="reg-go">' + (REMOTE ? 'Crear mi cuenta' : 'Enviarme el código') + '</button>' +
         '<p class="fine3">Solo necesitas internet para recibir el código. Después En Verde funciona sin conexión.</p>' +
         '<button class="alink" data-act="auth" data-step="login">Ya tengo cuenta: entrar</button>';
     } else if (st === 'login') {
@@ -3543,6 +3579,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if ((e = EVAcc.passError(f.pass, { email: f.email, nick: f.nick }))) err.pass = e;
     else if (f.pass !== f.pass2) err.pass2 = 'No es igual a la contraseña.';
     var ref = EVAcc.refFrom(f.ref);
+    if (!f.terms) err.terms = 'Para crear tu cuenta tienes que aceptar los términos.';
     if (ref) {
       if (!bySlug(ref)) err.ref = 'No encontramos ese código. Revisa el apodo de quien te invitó.';
       else if (ref === EVAcc.slug(f.nick)) err.ref = 'No puedes invitarte a ti mismo.';
@@ -3555,7 +3592,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var A = S.auth, f = A.f, now = NOW(), id = EVAcc.randHex(rand, 12), ref = EVAcc.refFrom(f.ref), inviter = bySlug(ref);
     var a = {
       id: id, nick: String(f.nick).trim(), email: EVAcc.normEmail(f.email), zone: S.zone, phone: EVAcc.normPhone(f.phone || ''),
-      created: now, verified: now, gems: 0, gemLog: [], pay: {}, ref: inviter ? ref : null, refDone: false, passFails: 0,
+      created: now, verified: now, gems: 0, gemLog: [], pay: {}, ref: inviter ? ref : null, refDone: false, passFails: 0, termsAt: now,
       legacy: accounts().length === 0                         // el primer perfil del teléfono se queda con lo que ya había registrado
     };
     a.passSalt = EVAcc.randHex(rand, 16); a.passHash = EVAcc.hashPass(f.pass, a.passSalt);
@@ -3671,7 +3708,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     h += navRow('sheet-open', 'data-sheet="pass"', 'Contraseña', a.weakPass ? 'Es tu PIN de antes: cámbiala por una de 8 caracteres o más' : a.passHash ? 'Para entrar con tu correo · cambiarla' : 'Todavía no tienes · créala', a.weakPass || !a.passHash ? 'warnrow' : '');
     h += navRow('sheet-open', 'data-sheet="gems"', 'Gemas e invitar', '<span class="gemc">' + I.gem + (a.gems || 0) + '</span> · 3 gemas = 1 mes sin cuota');
     h += navRow('sheet-open', 'data-sheet="fee"', 'Cuota y pagos', esc(feeLine(f)), f && (f.blocked || f.owed > 0) ? 'warnrow' : '');
+    h += navRow('sheet-open', 'data-sheet="blocks"', 'Personas bloqueadas', blkCount() ? blkCount() + (blkCount() === 1 ? ' persona' : ' personas') : 'Nadie');
+    h += navRow('sheet-open', 'data-sheet="terms"', 'Términos y privacidad', 'Qué datos se guardan, la cuota y las reglas.');
     h += navRow('logout', '', 'Cerrar sesión', 'Tus operaciones se quedan guardadas en este teléfono.');
+    h += navRow('acc-delete', '', 'Borrar mi cuenta', 'Se borran para siempre tu perfil y tus datos.', 'dangerrow');
     return h + '</div>';
   }
 
@@ -3712,7 +3752,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (REMOTE) { S.pf = null; closeSheet(); return rProfilePatch({ phone: p }, 'Teléfono guardado').then(render); }
     a.phone = p; saveReg(); S.pf = null; closeSheet(); render(); toast({ title: 'Teléfono guardado', ms: 2500 });
   }
-  function shareText() { var a = me(); return 'Lleva las cuentas de tus dólares con En Verde. Regístrate con mi enlace y ganas 1 gema: ' + EVAcc.refLink(a); }
+  function shareText() { var a = me(); return 'Lleva las cuentas de tus dólares con En Verde. Regístrate con mi enlace y ganas 1 gema: https://' + EVAcc.refLink(a); }
   function gemsBody() {
     var a = me(), s = EVAcc.slug(a.nick), inv = accounts().filter(function (x) { return x.ref === s; }), act = inv.filter(function (x) { return x.refDone; }).length;
     var h = '<div class="gemhero">' + I.gem + '<b id="gem-n">' + (a.gems || 0) + '</b><span>' + ((a.gems || 0) === 1 ? 'gema' : 'gemas') + '</span></div>' +
@@ -3884,6 +3924,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var h = BETA ? '<div class="ex"><b>Beta:</b> sin servidor solo ves los perfiles de este teléfono. Con el servidor verás todos.</div>' : '';
     h += '<div class="adsum"><div><b>' + all.length + '</b><span>perfiles</span></div><div><b>' + cnt.trial + '</b><span>en prueba</span></div><div><b>' + cnt.ok + '</b><span>al día</span></div>' +
       '<div><b>' + (cnt.owe + cnt.late) + '</b><span>deben</span></div><div><b>' + cnt.late + '</b><span>bloqueados</span></div><div><b>' + gems + '</b><span>gemas</span></div></div>';
+    h += reportsHTML(LREP.open(), function (id) { var x = REG.list[id]; return x && !x.cancelled; });
     h += suspectsHTML();
     h += '<p><b>Cobro por Transfermóvil</b></p><div class="aform"><label class="af" for="ad-tm"><span class="afl">Tarjeta o teléfono donde te pagan</span><input id="ad-tm" data-ad="tm" value="' + esc(S.adm.tm) + '" type="text" maxlength="40" spellcheck="false"></label></div>' +
       '<button class="btn block" data-act="ad-tm">Guardar</button>';
@@ -3992,14 +4033,19 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (OFS.offers.length + Object.keys(OFS.chats).length !== had) saveOfs();      // lo vencido se borra de verdad
   }
   function saveOfs() { lsSet(KO, OFS); }
-  function unreadN() { var a = me(); return a ? EVOff.unread(OFS, a.id) : 0; }
+  function unreadN() {
+    var a = me(); if (!a) return 0;
+    if (!blkCount()) return EVOff.unread(OFS, a.id);
+    var ch = {}; Object.keys(OFS.chats || {}).forEach(function (k) { var c = OFS.chats[k]; if (!isBlocked(c.a === a.id ? c.b : c.a)) ch[k] = c; });
+    return EVOff.unread({ offers: OFS.offers, chats: ch, read: OFS.read }, a.id);
+  }
   function ofLine(o, who) {
     return (o.k === 'sell' ? (who ? 'Vende' : 'Vendo') : (who ? 'Compra' : 'Compro')) + ' $' + EV.money(o.usd) + ' a ' + EV.money(o.price) + ' CUP';
   }
   function hoursLeft(o) { var h = Math.max(0, Math.ceil((o.exp - NOW()) / 3600000)); return h <= 1 ? 'queda menos de 1 h' : 'quedan ' + h + ' h'; }
   function boardList() {
     var a = me(), O = S.of, ex = BETA ? EVOff.examples(S.zone, NOW(), EVZone.anchors(realRows(), NOW())) : [];
-    return EVOff.board(OFS.offers.concat(ex), { now: NOW(), zone: S.zone, side: O.side, where: O.where }).filter(function (o) { return !a || o.uid !== a.id; });
+    return EVOff.board(OFS.offers.concat(ex), { now: NOW(), zone: S.zone, side: O.side, where: O.where }).filter(function (o) { return (!a || o.uid !== a.id) && !isBlocked(o.uid); });
   }
   function offerCard(o, best) {
     var a = me(), h = '<div class="ofc' + (o.ex ? ' ex' : '') + '" data-of="' + esc(o.id) + '">';
@@ -4017,6 +4063,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function threadsHTML(th) {
     var a = me(), rd = (OFS.read[a.id]) || {};
+    th = th.filter(function (c) { return !isBlocked(c.a === a.id ? c.b : c.a); });
     return '<div class="oflist">' + th.map(function (c) {
       var other = c.a === a.id ? c.bn : c.an, last = c.msgs[c.msgs.length - 1], nu = c.msgs.filter(function (m) { return m.from !== a.id && m.t > (rd[c.id] || 0); }).length;
       return '<button class="thr" data-act="chat-open" data-th="' + esc(c.id) + '"><span class="thr-t"><b>' + esc(other) + '</b><span>' + esc(lineOf(c, c.a !== a.id)) + '</span>' +
@@ -4143,8 +4190,13 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (OFS.chats[c.id]) saveOfs();
   }
   function chatBody() {
-    var a = me(), c = S.chat.c, other = c.a === a.id ? c.bn : c.an, h = '';
-    h += '<div class="chhead"><b>' + esc(other) + '</b><span>' + esc(lineOf(c, c.a !== a.id)) + (c.offer.zone && EVPlaces.get(c.offer.zone) ? ' · ' + esc(EVPlaces.get(c.offer.zone).name) : '') + '</span></div>';
+    var a = me(), c = S.chat.c, other = c.a === a.id ? c.bn : c.an, oid = c.a === a.id ? c.b : c.a, h = '';
+    h += '<div class="chhead"><b>' + esc(other) + '</b><span>' + esc(lineOf(c, c.a !== a.id)) + (c.offer.zone && EVPlaces.get(c.offer.zone) ? ' · ' + esc(EVPlaces.get(c.offer.zone).name) : '') + '</span>' +
+      '<span class="chtools"><button class="alink in" data-act="ch-report">Reportar</button>' + (isBlocked(oid) ? '' : '<button class="alink in" data-act="ch-block">Bloquear</button>') + '</span></div>';
+    if (isBlocked(oid)) {
+      return h + '<div class="fcard"><b>Bloqueaste a ' + esc(other) + '.</b> No puede escribirte ni ver tu chat, y sus ofertas no te aparecen.</div>' +
+        '<button class="btn block" data-act="blk-del" data-u="' + esc(oid) + '">Desbloquear a ' + esc(other) + '</button>';
+    }
     h += '<div class="chmsgs" id="ch-msgs">' + (c.msgs.length ? c.msgs.map(function (m) {
       return '<div class="msg' + (m.from === a.id ? ' me' : '') + '"><span>' + esc(m.text) + '</span><small>' + EV.fmtTime(m.t) + '</small></div>';
     }).join('') : '<p class="chempty">Escríbele para ponerse de acuerdo: dónde y cuándo se ven.</p>') + '</div>';
@@ -4152,6 +4204,147 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     h += '<div class="chin"><textarea id="ch-in" data-ch="1" rows="1" maxlength="' + EVOff.MSG_MAX + '" placeholder="Mensaje" aria-label="Mensaje">' + esc(S.chat.text || '') + '</textarea>' +
       '<button class="btn primary" data-act="chat-send">Enviar</button></div>';
     return h;
+  }
+
+  /* ---------- términos y privacidad ---------- */
+  function termsBody() {
+    var a = me(), h = '';
+    if (S.termsAsk) h += '<div class="fcard"><b>Actualizamos las reglas de En Verde.</b> Léelas y acéptalas para seguir.</div>';
+    h += '<div class="terms">' +
+      '<p class="fine2">Versión del 26 de noviembre de 2026.</p>' +
+      '<h4>Qué es En Verde</h4><p>Una app para llevar las cuentas de tus compras y ventas de dólares: tu costo promedio y lo que ganas en cada venta. También tiene un escáner de precios de tu zona y un tablero de ofertas. En Verde <b>no compra ni vende dólares</b>, no guarda tu dinero y no participa en los cambios entre personas.</p>' +
+      '<h4>Tu cuenta</h4><p>Una persona, un perfil. Entras con tu correo y tu contraseña; cuídalos y no se los des a nadie. Tu apodo es lo único que ven los demás.</p>' +
+      '<h4>Qué datos guardamos</h4><ul class="rules">' +
+      '<li><b>Tu perfil:</b> apodo, correo, municipio y, si lo pones, tu teléfono.</li>' +
+      '<li><b>Tus operaciones:</b> lo que registras con COMPRÉ y VENDÍ, para calcular tus ganancias y la cuota.</li>' +
+      '<li><b>Precios de tu zona:</b> del escáner sale solo el precio, la zona y la hora, sin montos ni tu nombre.</li>' +
+      '<li><b>Ofertas y mensajes:</b> las ofertas duran 24 horas. Los mensajes solo los ven las dos personas de la conversación; si alguien reporta un chat, el administrador puede leer los últimos mensajes de ese chat.</li>' +
+      '<li><b>Pagos:</b> el número de operación de Transfermóvil o el código del pago en efectivo.</li></ul>' +
+      '<p>No vendemos tus datos ni los usamos para publicidad. Tu correo y tu teléfono solo los ve el administrador (el teléfono, además, quien vea una oferta tuya donde elegiste mostrarlo).</p>' +
+      '<h4>La cuota</h4><p>Los primeros ' + EVAcc.TRIAL_DAYS + ' días son gratis. Después pagas el <b>1 % de lo que ganaste en el mes</b>; si un mes no ganas, no pagas. La cuota se paga el <b>día 1 del mes siguiente</b>. Desde el día 2, si no está pagada, no puedes registrar compras ni ventas hasta que pagues; el escáner, la calculadora y ver ofertas siguen gratis. Un pago por Transfermóvil te deja usar todo 48 horas mientras se confirma. 3 gemas pagan un mes.</p>' +
+      '<h4>Ofertas y cambios entre personas</h4><p>Cada quien es responsable de sus cambios. Háganlos en persona, en un lugar seguro, y <b>no mandes dinero por adelantado</b>. En Verde no garantiza ninguna oferta ni responde por lo que pase en un cambio.</p>' +
+      '<h4>Lo que no se permite</h4><ul class="rules"><li>Estafar, amenazar o molestar a otras personas.</li><li>Tener varias cuentas o cuentas falsas.</li><li>Poner precios falsos para mover el escáner.</li><li>Publicar ofertas que no son de verdad.</li></ul>' +
+      '<p>Si pasa, el administrador puede cancelar la cuenta. Puedes <b>reportar</b> o <b>bloquear</b> a alguien desde el chat.</p>' +
+      '<h4>Borrar tu cuenta</h4><p>Desde Ajustes → Borrar mi cuenta, si no debes ninguna cuota. Se borran tu perfil, tus operaciones, tus ofertas y tus mensajes. Guardamos solo una huella de tu correo (no el correo) para que no se repita el mes gratis, y los reportes que otras personas hicieron sobre ti.</p>' +
+      '<h4>Cambios y contacto</h4><p>Si estas reglas cambian, te lo avisamos en la app. Para dudas, escríbenos por el canal de En Verde en Telegram.</p>' +
+      '<p class="fine2">En Verde te ayuda a llevar tus cuentas; no es un consejo financiero.</p></div>';
+    if (S.termsAsk) h += '<button class="btn primary block" data-act="terms-ok">Acepto</button>';
+    return h;
+  }
+  function termsAccept() {
+    var a = me(); if (!a) return;
+    var ok = function () { a.termsAt = NOW(); saveReg(); S.termsAsk = false; closeSheet(); toast({ title: 'Gracias', ms: 2000 }); };
+    if (REMOTE) return SB.rpc('accept_terms').then(ok, function (e) { toast({ title: 'No se pudo guardar', sub: sbMsg(e), tone: 'loss', ms: 3500 }); });
+    ok();
+  }
+
+  /* ---------- bloquear y reportar ---------- */
+  var BLK = {
+    key: function () { var a = me(); return a ? 'enverde.blocks.v1.' + a.id : null; },
+    get: function () { var k = BLK.key(); return (k && lsGet(k)) || {}; },
+    set: function (m) { var k = BLK.key(); if (k) lsSet(k, m || {}); }
+  };
+  function isBlocked(id) { return !!id && Object.prototype.hasOwnProperty.call(BLK.get(), id); }
+  function blkCount() { return Object.keys(BLK.get()).length; }
+  function chOther() { var a = me(), c = S.chat && S.chat.c; if (!c) return null; return c.a === a.id ? { id: c.b, nick: c.bn } : { id: c.a, nick: c.an }; }
+  function chBlock() {
+    var o = chOther(); if (!o) return;
+    ask({ title: 'Bloquear a ' + o.nick, text: 'No podrá escribirte y no verás sus ofertas. No se le avisa. Puedes desbloquearlo después en Ajustes.', ok: 'Bloquear', danger: true, onOk: function () {
+      var done = function () { var m = BLK.get(); m[o.id] = o.nick; BLK.set(m); drawSheet(); toast({ title: 'Bloqueaste a ' + o.nick, ms: 3000 }); };
+      if (REMOTE) return SB.rest('POST', 'blocks', { blocked_id: o.id }).then(done, function (e) { if (e && e.code === '23505') return done(); toast({ title: 'No se pudo bloquear', sub: sbMsg(e), tone: 'loss', ms: 3500 }); });
+      done();
+    } });
+  }
+  function blkDel(id) {
+    var m = BLK.get(), nick = m[id] || '';
+    var done = function () { var mm = BLK.get(); delete mm[id]; BLK.set(mm); if (S.sheet) drawSheet(); render(); toast({ title: 'Desbloqueaste a ' + nick, ms: 2500 }); };
+    if (REMOTE) return SB.rest('DELETE', 'blocks?blocked_id=eq.' + id).then(done, function (e) { toast({ title: 'No se pudo', sub: sbMsg(e), tone: 'loss', ms: 3500 }); });
+    done();
+  }
+  function blocksBody() {
+    var m = BLK.get(), ids = Object.keys(m);
+    if (!ids.length) return '<div class="empty" style="margin:0"><h3>No has bloqueado a nadie</h3><p>Desde un chat puedes bloquear a quien te moleste: no podrá escribirte y no verás sus ofertas.</p></div>';
+    return '<div class="flist">' + ids.map(function (id) {
+      return '<div class="fm"><div class="fm-t"><b>' + esc(m[id] || 'Persona') + '</b></div><div class="adact"><button class="btn sm" data-act="blk-del" data-u="' + esc(id) + '">Desbloquear</button></div></div>';
+    }).join('') + '</div>';
+  }
+  var REASONS = { estafa: 'Estafa o intento de estafa', acoso: 'Amenazas o acoso', falso: 'Oferta o precio falso', spam: 'Spam o publicidad', otro: 'Otra cosa' };
+  function reportBody() {
+    var o = chOther() || { nick: '' }, R = S.rp || (S.rp = { reason: '', note: '' });
+    var h = '<p>¿Qué pasó con <b>' + esc(o.nick) + '</b>? El administrador lo revisa con los últimos mensajes de esta conversación. ' + esc(o.nick) + ' no sabrá quién lo reportó.</p><div class="radios">';
+    Object.keys(REASONS).forEach(function (k) {
+      h += '<button class="radio' + (R.reason === k ? ' on' : '') + '" role="radio" aria-checked="' + (R.reason === k) + '" data-act="rp-reason" data-r="' + k + '"><i></i><span><b>' + REASONS[k] + '</b></span></button>';
+    });
+    h += '</div><label class="af" for="rp-note"><span class="afl">Cuéntanos más <i>(opcional)</i></span><textarea id="rp-note" data-rp="note" rows="3" maxlength="300" class="tx sm">' + esc(R.note || '') + '</textarea></label>' +
+      (R.err ? '<div class="aerr" role="alert">' + esc(R.err) + '</div>' : '') +
+      '<button class="btn danger block" data-act="rp-go">Enviar el reporte</button>' +
+      '<p class="fine2">Si te sientes en peligro, aléjate y busca ayuda. Si quieres que no te escriba más, también puedes bloquearlo.</p>';
+    return h;
+  }
+  var LREP = {                                                    // beta sin servidor: reportes guardados en el teléfono
+    all: function () { return lsGet('enverde.reports.v1') || []; },
+    open: function () { return LREP.all().filter(function (r) { return r.status === 'open'; }); },
+    add: function (r) { var l = LREP.all(); l.push(r); lsSet('enverde.reports.v1', l.slice(-200)); },
+    done: function (id) { var l = LREP.all(); l.forEach(function (r) { if (String(r.id) === String(id)) r.status = 'done'; }); lsSet('enverde.reports.v1', l); }
+  };
+  function reportGo() {
+    var R = S.rp, o = chOther(), c = S.chat && S.chat.c, a = me(); if (!R || !o) return;
+    if (!R.reason) { R.err = 'Elige qué pasó.'; return drawSheet(); }
+    var done = function () { S.rp = null; closeSheet(); toast({ title: 'Reporte enviado', sub: 'Gracias. El administrador lo va a revisar.', ms: 3500 }); };
+    if (REMOTE) return SB.rest('POST', 'reports', { target_id: o.id, chat_id: c.id, reason: R.reason, note: String(R.note || '').trim().slice(0, 300) })
+      .then(done, function (e) { R.err = sbMsg(e); drawSheet(); });
+    LREP.add({ id: NOW(), user_id: a.id, user_nick: a.nick, target_id: o.id, target_nick: o.nick, reason: R.reason, note: String(R.note || '').trim().slice(0, 300), status: 'open', created_at: iso(NOW()),
+      evidence: (c.msgs || []).slice(-30).map(function (m) { return { de: m.from === a.id ? a.nick : o.nick, t: iso(m.t), x: m.text }; }) });
+    done();
+  }
+  function reportsHTML(list, canCancel) {
+    var h = '<p><b>Reportes (' + list.length + ')</b></p>';
+    if (!list.length) return h + '<p class="fine2">Nadie ha reportado a nadie.</p>';
+    return h + '<div class="flist">' + list.map(function (r) {
+      var ev = r.evidence || [];
+      return '<div class="fm sus"><div class="fm-t"><b>' + esc(r.target_nick || '?') + ' · ' + esc(REASONS[r.reason] || r.reason) + '</b>' +
+        '<span>Lo reportó ' + esc(r.user_nick || '?') + ' el ' + fmtDate(ms(r.created_at)) + (r.target_id ? '' : ' · ya borró su cuenta') + '</span>' +
+        (r.note ? '<span class="susr">«' + esc(r.note) + '»</span>' : '') +
+        (ev.length ? '<details class="repev"><summary>Ver los últimos ' + ev.length + ' mensajes</summary>' + ev.map(function (m) { return '<div><b>' + esc(m.de) + ':</b> ' + esc(m.x) + ' <small>' + fmtDate(ms(m.t)) + ' ' + EV.fmtTime(ms(m.t)) + '</small></div>'; }).join('') + '</details>' : '') + '</div>' +
+        '<div class="adact">' + (r.target_id && canCancel(r.target_id) ? '<button class="btn sm danger" data-act="ad-rep-cancel" data-u="' + esc(r.target_id) + '">Cancelar cuenta</button>' : '') +
+        '<button class="btn sm" data-act="ad-rep-done" data-id="' + esc(String(r.id)) + '">Listo, cerrar</button></div></div>';
+    }).join('') + '</div>';
+  }
+  function repDone(id) {
+    if (REMOTE) return SB.rest('PATCH', 'reports?id=eq.' + id, { status: 'done' }).then(function () { toast({ title: 'Reporte cerrado', ms: 2500 }); S.adm.list = null; rAdminLoad(); },
+      function (e) { toast({ title: 'No se pudo', sub: sbMsg(e), tone: 'loss', ms: 3500 }); });
+    LREP.done(id); drawSheet();
+  }
+
+  /* ---------- borrar la cuenta ---------- */
+  function accDelete() {
+    var a = me(); if (!a) return;
+    if (isAdmin(a)) return toast({ title: 'La cuenta del administrador no se borra desde aquí', tone: 'loss', ms: 3500 });
+    ask({ title: '¿Borrar tu cuenta para siempre?', text: 'Se borran tu perfil, tus operaciones, tus ofertas y tus mensajes, y no se pueden recuperar. Si vuelves con este correo, no tendrás otro mes gratis. Antes, si quieres, guarda un respaldo en Ajustes.',
+      ok: 'Borrar mi cuenta', no: 'No, volver', danger: true, onOk: function () {
+        var wipe = function () {
+          var k = dataKeys(a); [k.real, k.zone, BLK.key(), KOS].forEach(function (x) { if (x) { try { localStorage.removeItem(x); } catch (e) {} } });
+          delete REG.list[a.id]; REG.cur = null; saveReg();
+          S.real = []; S.demo = []; S.mode = 'real'; OB = { out: {}, ret: [] }; K.real = null; K.zone = null; memo.src = null;
+          S.sheet = null; $('#sheet').innerHTML = ''; authInit(); render();
+          toast({ title: 'Tu cuenta se borró', sub: 'Gracias por usar En Verde.', ms: 4000 });
+        };
+        if (REMOTE) {
+          if (!online()) return toast({ title: 'Necesitas internet para borrar tu cuenta', tone: 'loss', ms: 3500 });
+          return SB.rpc('delete_my_account').then(function () { clearTimeout(SYNC.timer); return SB.signOut().catch(function () {}); }).then(wipe,
+            function (e) { toast({ title: 'No se pudo borrar', sub: sbMsg(e), tone: 'loss', ms: 5000 }); });
+        }
+        wipe();
+      } });
+  }
+
+  /* ---------- tenerla como app (pantalla de inicio) ---------- */
+  function installBody() {
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent || '');
+    return '<p>En Verde se puede poner en la pantalla de inicio como una app más: abre de una vez, a pantalla completa y funciona aunque no tengas internet.</p>' +
+      (ios ? '<ol class="rules"><li>Ábrela en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li><li>Toca <b>Añadir a pantalla de inicio</b> y luego <b>Añadir</b>.</li></ol>'
+           : '<ol class="rules"><li>Ábrela en <b>Chrome</b>.</li><li>Toca el menú <b>⋮</b> arriba a la derecha.</li><li>Toca <b>Instalar app</b> o <b>Añadir a pantalla de inicio</b>.</li></ol>') +
+      '<p class="fine2">Tus datos no cambian: es la misma cuenta.</p>';
   }
   function chatSend() {
     if (REMOTE) {
@@ -4176,6 +4369,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
      el chat y los precios de zona van al servidor. El teléfono guarda una copia: sin internet la app sigue funcionando y
      sincroniza cuando vuelve. Las reglas (24 h, cuota, 48 h, una oferta por tipo) las hace cumplir el servidor. */
   function iso(ms) { return new Date(ms).toISOString(); }
+  function standalone() { try { return !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
   function ms(s) { return s ? Date.parse(s) : 0; }
   function sbMsg(e) { return e && e.offline ? 'Sin conexión. Inténtalo cuando tengas internet.' : (e && e.message) || 'No se pudo. Inténtalo de nuevo.'; }
   /* El perfil del servidor → la forma que usa la app */
@@ -4184,7 +4378,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     a.id = p.id; a.nick = p.nick; a.email = EVAcc.normEmail(email || a.email || ''); a.zone = p.zone; a.phone = p.phone;
     a.created = ms(p.created_at); a.verified = ms(p.verified_at) || null; a.gems = p.gems; a.ref = p.ref_slug; a.refDone = p.ref_done;
     a.exempt = !!p.is_admin; a.srvAdmin = !!p.is_admin; a.cancelled = p.cancelled_at ? { t: ms(p.cancelled_at) } : null;
-    a.remote = true; a.pay = a.pay || {}; a.gemLog = a.gemLog || []; a.passHash = 'srv';
+    a.remote = true; a.pay = a.pay || {}; a.gemLog = a.gemLog || []; a.passHash = 'srv'; a.termsAt = ms(p.terms_at) || null;
     return a;
   }
   function remoteLoadProfile() {
@@ -4283,6 +4477,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if ((e = EVAcc.passError(f.pass, { email: f.email, nick: f.nick }))) err.pass = e;
     else if (f.pass !== f.pass2) err.pass2 = 'No es igual a la contraseña.';
     if (ref && ref === EVAcc.slug(f.nick)) err.ref = 'No puedes invitarte a ti mismo.';
+    if (!f.terms) err.terms = 'Para crear tu cuenta tienes que aceptar los términos.';
     A.err = err;
     if (Object.keys(err).length) { render(); return focusFirstBad(); }
     if (!online()) { A.err = { top: 'Necesitas internet para crear tu cuenta. Después la app funciona sin conexión.' }; return render(); }
@@ -4290,7 +4485,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     Promise.all([SB.rpc('nick_available', { p_nick: f.nick }), ref ? SB.rpc('ref_exists', { p_code: ref }) : Promise.resolve(true)]).then(function (r) {
       if (!r[0]) { A.err.nick = 'Ese apodo ya está en uso. Prueba con otro.'; throw null; }
       if (!r[1]) { A.err.ref = 'No encontramos ese código. Revisa el apodo de quien te invitó.'; throw null; }
-      var meta = { nick: String(f.nick).trim(), zone: S.zone, phone: EVAcc.normPhone(f.phone || '') || '', ref: ref || '' };
+      var meta = { nick: String(f.nick).trim(), zone: S.zone, phone: EVAcc.normPhone(f.phone || '') || '', ref: ref || '', terms: '1' };
       return SB.signUp(EVAcc.normEmail(f.email), f.pass, meta);
     }).then(function (u) {
       A.busy = false;
@@ -4314,6 +4509,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       enterAccount();
       remoteSync();
       if (isNew && !a.exempt) { S.tgHi = '¡Listo, ' + a.nick + '! Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (a.ref ? ' Ganaste 1 gema.' : ''); return openSheet('tg'); }
+      if (!a.termsAt) { S.termsAsk = true; openSheet('terms'); }
       toast({ title: (isNew ? '¡Listo, ' : 'Hola, ') + a.nick + (isNew ? '!' : ''), sub: msg || (a.exempt ? 'Entraste como administrador.' : ''), ms: 3500 });
     }, function (e) { S.auth.busy = false; S.auth.err = { top: esc(sbMsg(e)) }; render(); });
   }
@@ -4479,8 +4675,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return Promise.all([
       SB.rest('GET', 'offers?select=*&deleted=eq.false&expires_at=gt.' + encodeURIComponent(nowIso) + '&order=created_at.desc&limit=300'),
       SB.rest('GET', 'chats?select=*&order=last_at.desc&limit=100'),
-      SB.rest('GET', 'chat_reads?select=chat_id,read_at')
+      SB.rest('GET', 'chat_reads?select=chat_id,read_at'),
+      SB.rest('GET', 'blocks?select=blocked_id,blocked_nick').catch(function () { return null; })
     ]).then(function (r) {
+      if (r[3]) { var bl = {}; r[3].forEach(function (x) { bl[x.blocked_id] = x.blocked_nick || ''; }); BLK.set(bl); }
       var chats = r[1] || [], ids = chats.map(function (c) { return c.id; });
       return (ids.length ? SB.rest('GET', 'messages?select=chat_id,from_id,text,created_at&chat_id=in.(' + ids.join(',') + ')&order=created_at&limit=2000') : Promise.resolve([]))
         .then(function (msgs) {
@@ -4530,9 +4728,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return Promise.all([
       SB.rpc('admin_profiles'),
       SB.rest('GET', 'payments?select=*&status=eq.pending&order=created_at'),
-      SB.rest('GET', 'app_config?select=key,value')
+      SB.rest('GET', 'app_config?select=key,value'),
+      SB.rest('GET', 'reports?select=*&status=eq.open&order=created_at.desc&limit=100').catch(function () { return []; })
     ]).then(function (r) {
-      S.adm.loading = false; S.adm.list = r[0] || []; S.adm.pend = r[1] || [];
+      S.adm.loading = false; S.adm.list = r[0] || []; S.adm.pend = r[1] || []; S.adm.reports = r[3] || [];
       (r[2] || []).forEach(function (c) { if (c.key === 'tm_dest') { REG.cfg.tm = c.value || ''; if (!S.adm.tmTouched) S.adm.tm = REG.cfg.tm; } });
       if (S.sheet === 'admin') drawSheet();
     }, function (e) { S.adm.loading = false; S.adm.loadErr = sbMsg(e); if (S.sheet === 'admin') drawSheet(); });
@@ -4559,6 +4758,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     });
     var h = '<div class="adsum"><div><b>' + all.length + '</b><span>perfiles</span></div><div><b>' + cnt.trial + '</b><span>en prueba</span></div><div><b>' + cnt.ok + '</b><span>al día</span></div>' +
       '<div><b>' + (cnt.owe + cnt.late) + '</b><span>deben</span></div><div><b>' + cnt.late + '</b><span>bloqueados</span></div><div><b>' + gems + '</b><span>gemas</span></div></div>';
+    h += reportsHTML(A.reports || [], function (id) { var p = byId[id]; return p && !p.cancelled_at; });
     var sus = all.filter(function (p) { return !p.cancelled_at && rAdminFlags(p, all).length; });
     h += '<p><b>Actividad rara (' + sus.length + ')</b></p>' + (sus.length ? '<div class="flist">' + sus.map(function (p) {
       return '<div class="fm sus"><div class="fm-t"><b>' + esc(p.nick) + '</b><span>' + esc(p.email) + '</span>' + rAdminFlags(p, all).map(function (t) { return '<span class="susr">• ' + esc(t) + '</span>'; }).join('') + '</div>' +
@@ -4673,6 +4873,15 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'calc-m': function (el) { S.calc.m = el.getAttribute('data-m'); drawSheet(); },
     'calc-avg': function () { var b = EV.replay(S.mode === 'demo' ? S.demo : S.real); S.calc.c = String(Math.round(b.avg * 100) / 100); drawSheet(); },
     'ad-reload': function () { S.adm.loadErr = ''; S.adm.list = null; drawSheet(); },
+    'terms-tick': function () { var A = S.auth; A.f.terms = !A.f.terms; if (A.f.terms) delete A.err.terms; render(); },
+    'terms-ok': termsAccept,
+    'ch-block': chBlock, 'ch-report': function () { S.rp = { reason: '', note: '', err: '' }; openSheet('report'); },
+    'rp-reason': function (el) { S.rp.reason = el.getAttribute('data-r'); S.rp.err = ''; drawSheet(); },
+    'rp-go': reportGo,
+    'blk-del': function (el) { blkDel(el.getAttribute('data-u')); },
+    'ad-rep-done': function (el) { repDone(el.getAttribute('data-id')); },
+    'ad-rep-cancel': function (el) { if (REMOTE) return rAdminAct('cancel', el); ACT['ad-cancel'](el); },
+    'acc-delete': accDelete,
     'ad-tm': function () { if (REMOTE) return rAdminAct('tm'); REG.cfg.tm = String(S.adm.tm || '').trim().slice(0, 40); saveReg(); toast({ title: 'Número de cobro guardado', ms: 2500 }); },
     'ad-cash': function () { if (REMOTE) return rAdminAct('cash'); S.adm.err = ''; adCash(); },
     'ad-ok': function (el) { if (REMOTE) return rAdminAct('ok', el); adSet(el, 'ok'); },
@@ -4708,6 +4917,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         var lb = t.closest ? t.closest('.af') : null, ee = lb && lb.querySelector('.afe');
         if (lb) lb.classList.remove('bad'); if (ee) ee.parentNode.removeChild(ee); t.removeAttribute('aria-invalid');
       }
+    } else if (t.getAttribute && t.getAttribute('data-rp') && S.rp) {
+      S.rp.note = t.value;
     } else if (t.getAttribute && t.getAttribute('data-pf') && S.pf) {
       S.pf[t.getAttribute('data-pf')] = t.value;
     } else if (t.getAttribute && t.getAttribute('data-pay') && S.pay) {
@@ -4789,6 +5000,9 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   } else {
   if (REMOTE && me() && !SB.session()) { REG.cur = null; saveReg(); }          // la sesión del servidor se cerró: hay que entrar otra vez
   if (me()) enterAccount(); else { authInit(); render(); }
+  }
+  if (REMOTE && 'serviceWorker' in navigator && /^https:/.test(location.href)) {      // abrir la app sin internet
+    try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
   }
   if (REMOTE) {
     if (me()) remoteSync();
