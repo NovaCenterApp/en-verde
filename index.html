@@ -749,6 +749,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var now = cfg.now || function () { return Date.now(); };
     var sess = store.get(KS) || null, refreshing = null, listeners = [];
 
+    /* A dónde lleva el enlace del correo: a esta misma página (tiene que estar en «Redirect URLs» de Supabase) */
+    function rt() { var r = cfg.redirect || (typeof location !== 'undefined' && /^https:/.test(location.href) ? location.origin + location.pathname : ''); return r ? '?redirect_to=' + encodeURIComponent(r) : ''; }
     function setSession(s) {
       sess = s && s.access_token ? {
         access_token: s.access_token, refresh_token: s.refresh_token,
@@ -812,11 +814,11 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       user: function () { return sess && sess.user; },
       onAuth: function (cb) { listeners.push(cb); },
       /* Registro: el servidor manda un código de 6 números al correo (hay que verificarlo con verify). */
-      signUp: function (email, password, meta) { return raw('POST', '/auth/v1/signup', { email: email, password: password, data: meta || {} }); },
+      signUp: function (email, password, meta) { return raw('POST', '/auth/v1/signup' + rt(), { email: email, password: password, data: meta || {} }); },
       verify: function (email, tokenStr, type) { return raw('POST', '/auth/v1/verify', { type: type, email: email, token: tokenStr }).then(setSession); },
-      resend: function (email) { return raw('POST', '/auth/v1/resend', { type: 'signup', email: email }); },
+      resend: function (email) { return raw('POST', '/auth/v1/resend' + rt(), { type: 'signup', email: email }); },
       signIn: function (email, password) { return raw('POST', '/auth/v1/token?grant_type=password', { email: email, password: password }).then(setSession); },
-      recover: function (email) { return raw('POST', '/auth/v1/recover', { email: email }); },
+      recover: function (email) { return raw('POST', '/auth/v1/recover' + rt(), { email: email }); },
       setPassword: function (password) { return authed('PUT', '/auth/v1/user', { password: password }); },
       signOut: function () {
         var p = sess ? authed('POST', '/auth/v1/logout', {}).catch(function () {}) : Promise.resolve();
