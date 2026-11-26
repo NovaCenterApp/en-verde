@@ -65,7 +65,7 @@ jobs:
           KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
         run: |
           BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
-          echo "$KEYSTORE_B64" | base64 -d > ks.p12
+          printf "%s" "$KEYSTORE_B64" | tr -d " \r\n\t" | base64 -d > ks.p12
           IN=android-app/android/app/build/outputs/apk/release/app-release-unsigned.apk
           "$ANDROID_HOME/build-tools/$BT/zipalign" -f -p 4 "$IN" aligned.apk
           "$ANDROID_HOME/build-tools/$BT/apksigner" sign --ks ks.p12 --ks-type PKCS12 --ks-pass env:KEYSTORE_PASS --ks-key-alias enverde --out EnVerde.apk aligned.apk

@@ -4374,7 +4374,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
      el chat y los precios de zona van al servidor. El teléfono guarda una copia: sin internet la app sigue funcionando y
      sincroniza cuando vuelve. Las reglas (24 h, cuota, 48 h, una oferta por tipo) las hace cumplir el servidor. */
   function iso(ms) { return new Date(ms).toISOString(); }
-  function standalone() { try { return !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
+  function standalone() { try { return !!((window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
   function ms(s) { return s ? Date.parse(s) : 0; }
   function sbMsg(e) { return e && e.offline ? 'Sin conexión. Inténtalo cuando tengas internet.' : (e && e.message) || 'No se pudo. Inténtalo de nuevo.'; }
   /* El perfil del servidor → la forma que usa la app */
@@ -5006,7 +5006,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   if (REMOTE && me() && !SB.session()) { REG.cur = null; saveReg(); }          // la sesión del servidor se cerró: hay que entrar otra vez
   if (me()) enterAccount(); else { authInit(); render(); }
   }
-  if (REMOTE && 'serviceWorker' in navigator && /^https:/.test(location.href)) {      // abrir la app sin internet
+  if (REMOTE && 'serviceWorker' in navigator && /^https:/.test(location.href) && location.hostname !== 'localhost') {      // abrir la app sin internet
     try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
   }
   if (REMOTE) {
