@@ -699,6 +699,8 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 .edit24 { margin: 10px 4px 0; font-size: 13px; color: var(--muted); text-align: center; }
 .edit24 { margin: 10px 4px 0; font-size: 13px; color: var(--muted); text-align: center; }
 .edit24 { margin: 10px 4px 0; font-size: 13px; color: var(--muted); text-align: center; }
+.go.go2 { margin-top: 4px; background: transparent; color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); min-height: 52px; font-size: 18px; }
+.ap.small { margin-top: 18px; font-size: 14px; opacity: .8; }
 
 </style>
 </head>
@@ -3486,12 +3488,18 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     } else if (st === 'verify') {
       var c = A.code;
       h += '<div class="ah"><button class="icon-btn" data-act="auth" data-step="' + (c.purpose === 'register' ? 'register' : 'login') + '" aria-label="Atrás">' + I.close + '</button><h2>Revisa tu correo</h2></div>' +
-        '<p class="ap">Te mandamos un código de 6 números a <b>' + esc(c.email) + '</b>. ' + (REMOTE ? 'Puede tardar unos minutos. Si no lo ves, mira también en Spam o Correo no deseado.' : 'Vale ' + Math.round(EVAcc.CODE_TTL / 60000) + ' minutos.') + '</p>' +
+        (REMOTE && c.purpose === 'register' ?
+          '<p class="ap">Te mandamos un correo a <b>' + esc(c.email) + '</b>. Ábrelo y toca <b>Confirmar</b> (si después se abre una página que no carga, no importa). Luego vuelve aquí y toca <b>Ya lo confirmé</b>.</p>' +
+          '<p class="ap">Puede tardar unos minutos. Si no lo ves, mira también en Spam o Correo no deseado.</p>' +
+          (A.err.top ? '<div class="aerr" role="alert">' + A.err.top + '</div>' : '') +
+          '<button class="go" data-act="code-link">Ya lo confirmé</button>' +
+          '<p class="ap small">¿El correo trae un código de 6 números? Escríbelo aquí:</p>' :
+        '<p class="ap">Te mandamos un código de 6 números a <b>' + esc(c.email) + '</b>. ' + (REMOTE ? 'Puede tardar unos minutos. Si no lo ves, mira también en Spam o Correo no deseado.' : 'Vale ' + Math.round(EVAcc.CODE_TTL / 60000) + ' minutos.') + '</p>') +
         (BETA ? '<div class="abeta"><b>BETA ·</b> todavía no se mandan correos de verdad. Tu código es <b class="mono" id="beta-code">' + c.c + '</b></div>' : '') +
         '<div class="aform">' + field('a-code', 'code', 'Código', '', 'type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"') + '</div>' +
-        (A.err.top ? '<div class="aerr" role="alert">' + A.err.top + '</div>' : '') +
-        '<button class="go" data-act="code-go">Verificar</button>' +
-        '<button class="alink" data-act="code-resend">Mandarme otro código</button>';
+        (A.err.top && !(REMOTE && c.purpose === 'register') ? '<div class="aerr" role="alert">' + A.err.top + '</div>' : '') +
+        '<button class="' + (REMOTE && c.purpose === 'register' ? 'go go2' : 'go') + '" data-act="code-go">Verificar</button>' +
+        '<button class="alink" data-act="code-resend">' + (REMOTE && c.purpose === 'register' ? 'Mandarme otro correo' : 'Mandarme otro código') + '</button>';
     }
     if (A.busy) h = h.replace(/<button class="go"/g, '<button class="go" disabled aria-busy="true"').replace(/(aria-busy="true"[^>]*>)[^<]+/g, '$1Un momento…');
     return h + '</div>';
@@ -4274,7 +4282,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     }).then(function (u) {
       A.busy = false;
       if (u && u.identities && !u.identities.length) { A.err = { email: 'Ese correo ya tiene un perfil. Entra con él.' }; render(); return focusFirstBad(); }
-      A.code = { purpose: 'register', email: EVAcc.normEmail(f.email), sent: NOW() }; A.f.code = ''; A.err = {}; A.step = 'verify'; render();
+      A.code = { purpose: 'register', email: EVAcc.normEmail(f.email), sent: NOW(), pw: f.pass }; A.f.code = ''; A.err = {}; A.step = 'verify'; render();
       var el = $('#a-code'); if (el && el.focus) el.focus();
     }, function (e) {
       A.busy = false;
@@ -4302,12 +4310,13 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (!EVAcc.validEmail(f.email)) { A.err.email = 'Escribe tu correo.'; render(); return focusFirstBad(); }
     if (!String(f.pass || '')) { A.err.pass = 'Escribe tu contraseña.'; render(); return focusFirstBad(); }
     A.busy = true; render();
+    var pw = f.pass;
     SB.signIn(EVAcc.normEmail(f.email), f.pass).then(function () { return afterLogin(); }, function (e) {
       A.busy = false; A.f.pass = '';
       if (e.code === 'email_not_confirmed') {
         SB.resend(EVAcc.normEmail(f.email)).catch(function () {});
-        A.code = { purpose: 'register', email: EVAcc.normEmail(f.email), sent: NOW() }; A.f.code = ''; A.step = 'verify';
-        A.err = { top: 'Todavía no verificaste tu correo. Te mandamos un código nuevo.' };
+        A.code = { purpose: 'register', email: EVAcc.normEmail(f.email), sent: NOW(), pw: pw }; A.f.code = ''; A.step = 'verify';
+        A.err = { top: 'Todavía no confirmaste tu correo. Te mandamos otro correo para confirmarlo.' };
       } else if (e.code === 'invalid_credentials') A.err = { pass: e.message };
       else A.err = { top: esc(sbMsg(e)) };
       render(); focusFirstBad();
@@ -4333,6 +4342,19 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       A.busy = false; A.step = 'newpass'; A.f.np = A.f.np2 = ''; render();
       var np = $('#a-np'); if (np && np.focus) np.focus();
     }, function (e) { A.busy = false; A.f.code = ''; A.err = { code: e.code === 'otp_expired' ? 'Ese código no es o ya venció. Revisa el correo o pide otro.' : sbMsg(e) }; render(); focusFirstBad(); });
+  }
+  /* Confirmación con el enlace del correo: después de tocarlo, entra con la contraseña que acaba de escribir */
+  function rCodeLink(quiet) {
+    var A = S.auth, c = A.code;
+    if (!c || c.purpose !== 'register' || A.busy) return;
+    if (!c.pw) { A.step = 'login'; A.f.email = c.email; A.err = { top: 'Ya puedes entrar con tu correo y tu contraseña.' }; return render(); }
+    A.busy = true; if (!quiet) render();
+    SB.signIn(c.email, c.pw).then(function () { c.pw = null; return afterLogin('', true); }, function (e) {
+      A.busy = false;
+      if (quiet) return;
+      A.err = { top: e.code === 'email_not_confirmed' ? 'Todavía no aparece confirmado. Abre el correo de En Verde y toca <b>Confirmar</b>; luego vuelve y toca otra vez.' : esc(sbMsg(e)) };
+      render();
+    });
   }
   function rNpGo() {
     var A = S.auth, e, email = A.code ? A.code.email : '';
@@ -4603,7 +4625,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'zone-open': function () { S.zoneFirst = false; openSheet('zone'); },
     'zone-pick': function (el) { setZone(el.getAttribute('data-z')); },
     auth: function (el) { var A = S.auth; A.step = el.getAttribute('data-step'); A.err = {}; if (A.step !== 'verify') A.f.pass = A.f.pass2 = ''; render(); var f = document.querySelector('.auth input'); if (f && f.focus && A.step !== 'welcome') f.focus(); },
-    'reg-go': regGo, 'login-go': loginGo, 'login-code': loginCode, 'code-go': codeGo, 'code-resend': codeResend,
+    'reg-go': regGo, 'login-go': loginGo, 'login-code': loginCode, 'code-go': codeGo, 'code-resend': codeResend, 'code-link': function () { rCodeLink(false); },
     logout: function () { ask({ title: 'Cerrar sesión', text: 'Tus operaciones se quedan guardadas en este teléfono. Para volver, entras con tu correo y tu contraseña.', ok: 'Cerrar sesión', onOk: logout }); },
     'tg-open': function () { var a = me(); if (a && !a.tg) { a.tg = 1; saveReg(); } if (S.sheet === 'tg') setTimeout(closeSheet, 300); },
     'sync-now': function () { remoteSync(true).then(function () { toast({ title: SYNC.err ? 'No se pudo sincronizar' : 'Sincronizado', sub: SYNC.err, tone: SYNC.err ? 'loss' : '', ms: 3000 }); }); },
@@ -4733,7 +4755,11 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (me()) remoteSync();
     setInterval(function () { if (me()) remoteSync(); }, 60000);
     window.addEventListener('online', function () { if (me()) remoteSync(); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && me()) remoteSync(); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      if (me()) remoteSync();
+      else if (S.auth && S.auth.step === 'verify' && S.auth.code && S.auth.code.purpose === 'register') rCodeLink(true);   // volvió del correo: prueba a entrar solo
+    });
   }
   useCap('downloads').then(function (d) {
     if (d && typeof d.save === 'function') { dlApi = d; S.dl = true; if (S.sheet === 'backup') drawSheet(); }
