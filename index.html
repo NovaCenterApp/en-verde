@@ -822,6 +822,13 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         var p = sess ? authed('POST', '/auth/v1/logout', {}).catch(function () {}) : Promise.resolve();
         return p.then(function () { setSession(null); });
       },
+      /* Enlace del correo: la web se abre con #access_token=…&type=recovery|signup. Guarda esa sesión y averigua quién es. */
+      adopt: function (h) {
+        setSession({ access_token: h.access_token, refresh_token: h.refresh_token, expires_in: +h.expires_in || 3600, expires_at: +h.expires_at || 0, user: null });
+        return authed('GET', '/auth/v1/user').then(function (u) {
+          sess.user = { id: u.id, email: u.email }; store.set(KS, sess); return sess;
+        }, function (e) { setSession(null); throw e; });
+      },
       refresh: refresh,
       /* REST: path como 'ops?select=*' · prefer: cabecera Prefer (p. ej. 'return=representation') */
       rest: function (method, path, body, prefer) { return authed(method, '/rest/v1/' + path, body, prefer ? { Prefer: prefer } : null); },
@@ -3494,6 +3501,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
           (A.err.top ? '<div class="aerr" role="alert">' + A.err.top + '</div>' : '') +
           '<button class="go" data-act="code-link">Ya lo confirmé</button>' +
           '<p class="ap small">¿El correo trae un código de 6 números? Escríbelo aquí:</p>' :
+        REMOTE && c.purpose === 'reset' ?
+          '<p class="ap">Te mandamos un correo a <b>' + esc(c.email) + '</b>. Ábrelo y toca el enlace: se abrirá En Verde para que crees tu contraseña nueva.</p>' +
+          '<p class="ap">Puede tardar unos minutos. Si no lo ves, mira también en Spam o Correo no deseado.</p>' +
+          '<p class="ap small">¿El correo trae un código de 6 números? Escríbelo aquí:</p>' :
         '<p class="ap">Te mandamos un código de 6 números a <b>' + esc(c.email) + '</b>. ' + (REMOTE ? 'Puede tardar unos minutos. Si no lo ves, mira también en Spam o Correo no deseado.' : 'Vale ' + Math.round(EVAcc.CODE_TTL / 60000) + ' minutos.') + '</p>') +
         (BETA ? '<div class="abeta"><b>BETA ·</b> todavía no se mandan correos de verdad. Tu código es <b class="mono" id="beta-code">' + c.c + '</b></div>' : '') +
         '<div class="aform">' + field('a-code', 'code', 'Código', '', 'type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"') + '</div>' +
@@ -4343,6 +4354,26 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       var np = $('#a-np'); if (np && np.focus) np.focus();
     }, function (e) { A.busy = false; A.f.code = ''; A.err = { code: e.code === 'otp_expired' ? 'Ese código no es o ya venció. Revisa el correo o pide otro.' : sbMsg(e) }; render(); focusFirstBad(); });
   }
+  /* Enlaces de los correos (confirmar cuenta, cambiar contraseña): llegan en el # de la dirección */
+  function linkFromHash() {
+    var h = String(location.hash || '').replace(/^#/, ''); if (!h || !/access_token=|error_code=|error=/.test(h)) return null;
+    var o = {}; h.split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) o[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' ')); });
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return o;
+  }
+  function openLink(o) {
+    var A = S.auth;
+    if (!o.access_token) {
+      A.step = 'login';
+      A.err = { top: o.error_code === 'otp_expired' ? 'Ese enlace ya venció o ya se usó. Si ya confirmaste tu cuenta, entra con tu correo y tu contraseña; si querías cambiar la contraseña, pide otro correo.' : 'No se pudo abrir el enlace del correo. Entra con tu correo y tu contraseña.' };
+      return render();
+    }
+    A.busy = true; render();
+    SB.adopt(o).then(function (sess) {
+      if (o.type === 'recovery') { A.busy = false; A.code = { purpose: 'reset', email: sess.user.email }; A.step = 'newpass'; A.f.np = A.f.np2 = ''; A.err = {}; return render(); }
+      return afterLogin(o.type === 'signup' ? 'Cuenta confirmada.' : '', o.type === 'signup');
+    }, function (e) { A.busy = false; A.step = 'login'; A.err = { top: e && e.offline ? 'Necesitas internet para abrir el enlace. Conéctate y vuelve a tocarlo.' : 'Ese enlace ya no sirve. Entra con tu correo y tu contraseña, o pide otro.' }; render(); });
+  }
   /* Confirmación con el enlace del correo: después de tocarlo, entra con la contraseña que acaba de escribir */
   function rCodeLink(quiet) {
     var A = S.auth, c = A.code;
@@ -4749,8 +4780,14 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     });
   }
   loadOfs();
+  var LINK = REMOTE ? linkFromHash() : null;
+  if (LINK) {                                                                    // viene de tocar el enlace de un correo
+    if (me()) { REG.cur = null; saveReg(); }
+    authInit(); render(); openLink(LINK);
+  } else {
   if (REMOTE && me() && !SB.session()) { REG.cur = null; saveReg(); }          // la sesión del servidor se cerró: hay que entrar otra vez
   if (me()) enterAccount(); else { authInit(); render(); }
+  }
   if (REMOTE) {
     if (me()) remoteSync();
     setInterval(function () { if (me()) remoteSync(); }, 60000);
