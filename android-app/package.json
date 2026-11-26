@@ -1,0 +1,11 @@
+{
+  "name": "en-verde-android",
+  "private": true,
+  "version": "1.0.0",
+  "description": "En Verde para Android: la misma app de la web, empaquetada como APK.",
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  }
+}

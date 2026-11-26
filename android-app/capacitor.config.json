@@ -1,0 +1,8 @@
+{
+  "appId": "com.novacenter.enverde",
+  "appName": "En Verde",
+  "webDir": "www",
+  "backgroundColor": "#012308",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}
