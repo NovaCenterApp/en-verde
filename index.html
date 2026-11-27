@@ -728,6 +728,10 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 .repev small { color: var(--muted); }
 .brand .logo-img { width: 28px; height: 28px; margin-right: 8px; border-radius: 7px; }
 .aw-img { display: block; width: 132px; height: 132px; border-radius: 30px; margin: 0 0 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.pushcard { margin: 14px 0 0; padding: 16px; border-radius: 18px; background: var(--surface); border: 1.5px solid var(--brand); display: grid; gap: 12px; }
+.pushcard .pc-t { display: grid; gap: 4px; font-size: 15px; }
+.pushcard .pc-t span { color: var(--muted); }
+.pushcard .pc-b { display: flex; gap: 10px; }
 
 </style>
 </head>
@@ -2532,6 +2536,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     h += '<section class="hero" aria-label="Ganado hoy"><div class="lbl">Ganado hoy</div>' + heroNum(t.today) + '</section>';
     h += '<button class="scanbtn" data-act="scan-open"><span class="sb-i">' + I.gauge + '</span><span class="sb-t"><span class="sb-1">Escanear precio en mi zona</span>' +
       '<span class="sb-2">' + (S.zone ? esc(zoneLabel()) : 'Elige tu municipio para empezar') + '</span></span>' + I.chev + '</button>';
+    if (S.mode === 'real' && PUSH.ask()) h += '<div class="pushcard"><div class="pc-t"><b>🔔 Activa los avisos</b><span>Te avisamos cuando te escriban, cuando confirmemos tu pago y antes de que toque pagar.</span></div>' +
+      '<div class="pc-b"><button class="btn sm primary" data-act="push-on">Activar</button><button class="btn sm ghost" data-act="push-later">Ahora no</button></div></div>';
     if (S.mode === 'real') {
       var fs = feeState(), lm = fs && lateMonth(fs);
       if (fs && fs.blocked) h += '<button class="banner bad feeban" data-act="sheet-open" data-sheet="fee"><b>Cuota vencida: ' + EV.money(fs.owed) + ' CUP.</b> No puedes registrar compras ni ventas hasta pagar. El escáner y la calculadora siguen gratis. <u>Pagar</u></button>';
@@ -2704,6 +2710,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         navRow('sheet-open', 'data-sheet="backup"', 'Copiar o guardar un respaldo', 'Todo lo que has registrado, en un texto.') +
         navRow('sheet-open', 'data-sheet="restore"', 'Restaurar desde un respaldo', 'Pega el texto o elige el archivo.') + '</div>';
     }
+    if (REMOTE) h += '<div class="group"><div class="gh">Avisos</div>' + PUSH.row() + '</div>';
     h += '<div class="group"><div class="gh">Comunidad</div>' + tgLink('set tgrow', 'Canal de En Verde en Telegram<small>Únete para estar al día con las novedades</small>') + '</div>';
     h += '<div class="group"><div class="gh">Ayuda</div>' + navRow('sheet-open', 'data-sheet="how"', 'Cómo se calculan las ganancias', 'Costo promedio y ganancia de cada venta.') +
       (REMOTE && !standalone() ? navRow('sheet-open', 'data-sheet="install"', 'Ponerla en la pantalla de inicio', 'Ábrela como una app, aunque no tengas internet.') : '') + '</div>';
@@ -3468,7 +3475,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (!S.zoneAsked && !S.zone) { S.zoneFirst = true; openSheet('zone'); }
   }
   function logout() {
-    if (REMOTE) { clearTimeout(SYNC.timer); SB.signOut(); }
+    if (REMOTE) { clearTimeout(SYNC.timer); PUSH.forget().then(function () { SB.signOut(); }, function () { SB.signOut(); }); }
     if (cloud) { try { cloud.setEnabled(false); } catch (e) {} }
     cloud = null; REG.cur = null; saveReg();
     S.real = []; S.demo = []; S.mode = 'real'; OB = { out: {}, ret: [] }; K.real = null; K.zone = null; memo.src = null;
@@ -4343,6 +4350,88 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       } });
   }
 
+
+  /* ---------- avisos en el teléfono (Web Push) ---------- */
+  var PUSH = {
+    st: { busy: false, on: null, err: '' },
+    native: function () { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); },
+    ios: function () { return /iPhone|iPad|iPod/.test(navigator.userAgent || ''); },
+    can: function () { return REMOTE && !PUSH.native() && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && /^https:/.test(location.href); },
+    perm: function () { try { return Notification.permission; } catch (e) { return 'default'; } },
+    ask: function () {                               // mostrar la tarjeta de la portada
+      if (!REMOTE || !me()) return false;
+      var later = lsGet('enverde.push.later'); if (later && NOW() - later < 7 * 864e5) return false;
+      if (PUSH.st.on) return false;
+      if (PUSH.can()) return PUSH.perm() === 'default';
+      return PUSH.ios() && !standalone() && !PUSH.native();   // en iPhone primero hay que ponerla en la pantalla de inicio
+    },
+    reg: function () { return navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; }); },
+    key: function (b64) {
+      var s = (b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'), raw = atob(s), out = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out;
+    },
+    save: function (sub) {
+      var j = sub.toJSON();
+      return SB.rest('POST', 'push_subs?on_conflict=endpoint', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, ua: String(navigator.userAgent || '').slice(0, 200) }, 'resolution=merge-duplicates')
+        .catch(function (e) {            // el teléfono estaba suscrito con otra cuenta: se borra y se vuelve a guardar
+          return SB.rest('DELETE', 'push_subs?endpoint=eq.' + encodeURIComponent(j.endpoint)).catch(function () {}).then(function () {
+            return SB.rest('POST', 'push_subs', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, ua: String(navigator.userAgent || '').slice(0, 200) });
+          });
+        });
+    },
+    enable: function () {
+      if (!PUSH.can()) { if (PUSH.ios() && !standalone()) return openSheet('install'); return toast({ title: 'Este navegador no permite avisos', sub: 'Prueba con Chrome en Android o con la app en la pantalla de inicio del iPhone.', tone: 'loss', ms: 4500 }); }
+      if (!online()) return toast({ title: 'Necesitas internet para activar los avisos', tone: 'loss', ms: 3500 });
+      PUSH.st.busy = true; render();
+      var done = function (ok, msg) { PUSH.st.busy = false; PUSH.st.on = ok; render(); if (S.sheet) drawSheet(); toast(ok ? { title: '🔔 Avisos activados', sub: 'Te avisaremos en este teléfono.', ms: 3500 } : { title: msg || 'No se pudieron activar', tone: 'loss', ms: 4500 }); };
+      Notification.requestPermission().then(function (p) {
+        if (p !== 'granted') return done(false, p === 'denied' ? 'Los avisos están bloqueados en el navegador' : 'No se activaron los avisos');
+        return Promise.all([PUSH.reg(), SB.rpc('push_public_key')]).then(function (r) {
+          var reg = r[0], key = r[1]; if (!key) throw new Error('sin clave');
+          return reg.pushManager.getSubscription().then(function (old) {
+            return old || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: PUSH.key(key) });
+          });
+        }).then(PUSH.save).then(function () { done(true); });
+      }).catch(function (e) { done(false, 'No se pudieron activar: ' + (e && e.message ? e.message : sbMsg(e))); });
+    },
+    disable: function () {
+      PUSH.st.busy = true; render();
+      PUSH.forget(true).then(function () { PUSH.st.busy = false; PUSH.st.on = false; render(); toast({ title: 'Avisos apagados', ms: 2500 }); });
+    },
+    forget: function (unsub) {                          // borra la suscripción de esta cuenta en este teléfono
+      if (!PUSH.can()) return Promise.resolve();
+      return navigator.serviceWorker.getRegistration().then(function (reg) { return reg && reg.pushManager.getSubscription(); }).then(function (sub) {
+        if (!sub) return;
+        return SB.rest('DELETE', 'push_subs?endpoint=eq.' + encodeURIComponent(sub.endpoint)).catch(function () {}).then(function () { if (unsub) return sub.unsubscribe(); });
+      }).catch(function () {});
+    },
+    resync: function () {                               // al entrar: si este teléfono ya tenía permiso, se vuelve a anotar
+      if (!PUSH.can()) return;
+      navigator.serviceWorker.getRegistration().then(function (reg) { return reg && reg.pushManager.getSubscription(); }).then(function (sub) {
+        PUSH.st.on = !!(sub && PUSH.perm() === 'granted');
+        if (PUSH.st.on) return PUSH.save(sub);
+      }).catch(function () {}).then(function () { if (me()) render(); });
+    },
+    row: function () {
+      var d, act = 'push-on', attrs = '';
+      if (PUSH.native()) { d = 'En la app de Android todavía no llegan. Ábrela en Chrome para recibirlos.'; act = ''; }
+      else if (!PUSH.can()) {
+        if (PUSH.ios() && !standalone()) { d = 'En iPhone, primero pon En Verde en la pantalla de inicio.'; act = 'sheet-open'; attrs = 'data-sheet="install"'; }
+        else { d = 'Este navegador no permite avisos.'; act = ''; }
+      } else if (PUSH.st.busy) d = 'Un momento…';
+      else if (PUSH.perm() === 'denied') { d = 'Bloqueados en el navegador. Actívalos en los ajustes del teléfono para este sitio.'; act = ''; }
+      else if (PUSH.st.on) { d = 'Activados en este teléfono. Toca para apagarlos.'; act = 'push-off'; }
+      else d = 'Mensajes nuevos, pagos confirmados y recordatorios de la cuota.';
+      var title = PUSH.st.on ? '🔔 Avisos activados' : 'Activar avisos';
+      return act ? navRow(act, attrs, title, d) : '<div class="set"><div class="st">' + title + '<small>' + esc(d) + '</small></div></div>';
+    }
+  };
+  function openFromUrl(what) {                          // al tocar un aviso: abre la parte de la app que corresponde
+    var map = { msgs: 'msgs', fee: 'fee', gems: 'gems', admin: 'admin' }, k = map[what];
+    if (!k || !me()) return;
+    if (k === 'admin' && !isAdmin(me())) return;
+    openSheet(k);
+  }
   /* ---------- tenerla como app (pantalla de inicio) ---------- */
   function installBody() {
     var ios = /iPhone|iPad|iPod/.test(navigator.userAgent || '');
@@ -4513,6 +4602,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       S.auth.busy = false;
       enterAccount();
       remoteSync();
+      PUSH.resync();
       if (isNew && !a.exempt) { S.tgHi = '¡Listo, ' + a.nick + '! Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (a.ref ? ' Ganaste 1 gema.' : ''); return openSheet('tg'); }
       if (!a.termsAt) { S.termsAsk = true; openSheet('terms'); }
       toast({ title: (isNew ? '¡Listo, ' : 'Hola, ') + a.nick + (isNew ? '!' : ''), sub: msg || (a.exempt ? 'Entraste como administrador.' : ''), ms: 3500 });
@@ -4887,6 +4977,9 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'ad-rep-done': function (el) { repDone(el.getAttribute('data-id')); },
     'ad-rep-cancel': function (el) { if (REMOTE) return rAdminAct('cancel', el); ACT['ad-cancel'](el); },
     'acc-delete': accDelete,
+    'push-on': function () { PUSH.enable(); },
+    'push-off': function () { ask({ title: 'Apagar los avisos', text: 'Dejarás de recibir avisos en este teléfono. Puedes volver a activarlos cuando quieras.', ok: 'Apagar', onOk: function () { PUSH.disable(); } }); },
+    'push-later': function () { lsSet('enverde.push.later', NOW()); render(); },
     'ad-tm': function () { if (REMOTE) return rAdminAct('tm'); REG.cfg.tm = String(S.adm.tm || '').trim().slice(0, 40); saveReg(); toast({ title: 'Número de cobro guardado', ms: 2500 }); },
     'ad-cash': function () { if (REMOTE) return rAdminAct('cash'); S.adm.err = ''; adCash(); },
     'ad-ok': function (el) { if (REMOTE) return rAdminAct('ok', el); adSet(el, 'ok'); },
@@ -5010,6 +5103,12 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
   }
   if (REMOTE) {
+    (function () {
+      var m = /[?&]open=(\w+)/.exec(location.search || '');
+      if (m) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTimeout(function () { openFromUrl(m[1]); }, 700); }
+      if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (ev) { if (ev.data && ev.data.open) openFromUrl(ev.data.open); });
+      if (me()) PUSH.resync();
+    })();
     if (me()) remoteSync();
     setInterval(function () { if (me()) remoteSync(); }, 60000);
     window.addEventListener('online', function () { if (me()) remoteSync(); });
