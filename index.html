@@ -764,6 +764,8 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 .apkline span { display: grid; gap: 2px; } .apkline small { color: var(--muted); }
 .top .brand { white-space: nowrap; }
 @media (max-width: 370px) { .top .curpick { min-height: 28px; padding: 0 8px; font-size: 12px; } .top .brand { font-size: 17px; } .top .icon-btn { width: 38px; } }
+.chkeep { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); text-align: center; }
+.chkeep .alink { font-size: 12.5px; }
 
 </style>
 </head>
@@ -2173,14 +2175,25 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     });
     return out;
   }
-  function purge(store, now) {
-    var offers = (store.offers || []).filter(function (o) { return active(o, now); });
+  /* Las ofertas vencidas se borran de verdad. Los mensajes se borran cuando pasa su plazo: keepOf(c) da los ms
+     (el más corto de las dos personas; 0 = nunca). Una conversación sin mensajes y sin oferta se borra. */
+  function purge(store, now, keepOf) {
+    var offers = (store.offers || []).filter(function (o) { return active(o, now); }), live = {};
+    offers.forEach(function (o) { live[o.id] = 1; });
     var chats = {};
     Object.keys(store.chats || {}).forEach(function (id) {
-      var c = store.chats[id], last = c && c.msgs && c.msgs.length ? c.msgs[c.msgs.length - 1].t : (c && c.t) || 0;
-      if (c && now - last < CHAT_KEEP) chats[id] = c;
+      var c = store.chats[id]; if (!c) return;
+      var keep = keepOf ? keepOf(c) : CHAT_KEEP;
+      if (keep > 0) c.msgs = (c.msgs || []).filter(function (m) { return now - m.t < keep; });
+      var offerAlive = c.offer && live[c.offer.id];
+      if ((c.msgs && c.msgs.length) || offerAlive) chats[id] = c;
     });
     return { offers: offers, chats: chats, read: store.read || {} };
+  }
+  var MSG_DAYS = [1, 7, 30, 0];          // opciones para borrar los mensajes (0 = nunca)
+  function keepMs(a, b) {                 // el plazo más corto de las dos personas
+    var x = [a, b].map(function (d) { return d == null ? 7 : d; }).filter(function (d) { return d > 0; });
+    return x.length ? Math.min.apply(null, x) * DAY : 0;
   }
   /* Una conversación por oferta y por persona que escribe: «<oferta>:<quien escribe>» */
   function threadId(offerId, uid) { return offerId + ':' + uid; }
@@ -2221,7 +2234,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
 
   return {
-    TTL: TTL, USD_MAX: USD_MAX, MSG_MAX: MSG_MAX, CHAT_KEEP: CHAT_KEEP,
+    TTL: TTL, USD_MAX: USD_MAX, MSG_MAX: MSG_MAX, CHAT_KEEP: CHAT_KEEP, MSG_DAYS: MSG_DAYS, keepMs: keepMs,
     active: active, check: check, curOf: curOf, make: make, mineActive: mineActive, mineOf: mineOf, board: board, purge: purge, provOf: provOf,
     threadId: threadId, cleanMsg: cleanMsg, myThreads: myThreads, lastT: lastT, unread: unread, waNumber: waNumber, examples: examples
   };
@@ -2824,6 +2837,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (k === 'pay') { S.pay = null; openSheet('fee'); return; }
     if (k === 'tg' && S.nextRef && me()) { S.nextRef = false; openSheet('refintro'); return; }      // después del canal: cómo funcionan las invitaciones
     if (k === 'report' && S.chat) { S.rp = null; openSheet('chat'); return; }
+    if (k === 'msgdays' && S.chat) { openSheet('chat'); return; }
     if (k === 'terms' && S.termsAsk) { S.termsAsk = false; }
     if (k === 'chat' && S.chatFrom === 'msgs') { S.chat = null; S.chatFrom = null; render(); openSheet('msgs'); return; }
     if (k === 'chat' || k === 'offer-new' || k === 'msgs') { S.chat = null; if (me()) render(); }
@@ -2839,6 +2853,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       '<p>Únete para estar al día: novedades de la app, avisos importantes y consejos para sacarle más a tus cuentas.</p>' +
       tgLink('btn primary block tgbtn', 'Unirme al canal') + '<button class="btn block" data-act="sheet-close">Ahora no</button>';
     } else if (k === 'cur') { title = 'Moneda'; body = curSheetBody();
+    } else if (k === 'msgdays') { title = 'Borrar mis mensajes'; body = msgDaysBody();
     } else if (k === 'refintro') { title = 'Invita y gana meses gratis'; body = refIntroBody();
     } else if (k === 'phone') { title = 'Teléfono'; body = phoneBody();
     } else if (k === 'gems') { title = 'Gemas e invitar'; body = gemsBody();
@@ -3825,6 +3840,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     h += navRow('sheet-open', 'data-sheet="pass"', 'Contraseña', a.weakPass ? 'Es tu PIN de antes: cámbiala por una de 8 caracteres o más' : a.passHash ? 'Para entrar con tu correo · cambiarla' : 'Todavía no tienes · créala', a.weakPass || !a.passHash ? 'warnrow' : '');
     h += navRow('sheet-open', 'data-sheet="gems"', 'Gemas e invitar', '<span class="gemc">' + I.gem + (a.gems || 0) + '</span> · 3 gemas = 1 mes sin cuota');
     h += navRow('sheet-open', 'data-sheet="fee"', 'Cuota y pagos', esc(feeLine(f)), f && (f.blocked || f.owed > 0) ? 'warnrow' : '');
+    h += navRow('sheet-open', 'data-sheet="msgdays"', 'Borrar mis mensajes', msgDaysText(a.msgDays == null ? 7 : a.msgDays));
     h += navRow('sheet-open', 'data-sheet="blocks"', 'Personas bloqueadas', blkCount() ? blkCount() + (blkCount() === 1 ? ' persona' : ' personas') : 'Nadie');
     h += navRow('sheet-open', 'data-sheet="terms"', 'Términos y privacidad', 'Qué datos se guardan, la cuota y las reglas.');
     h += navRow('logout', '', 'Cerrar sesión', 'Tus operaciones se quedan guardadas en este teléfono.');
@@ -3870,6 +3886,16 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     a.phone = p; saveReg(); S.pf = null; closeSheet(); render(); toast({ title: 'Teléfono guardado', ms: 2500 });
   }
   function shareText() { var a = me(); return 'Lleva las cuentas de tus dólares con En Verde. Regístrate con mi enlace y ganas 1 gema: https://' + EVAcc.refLink(a); }
+  function msgDaysText(d) { return d === 0 ? 'Nunca' : d === 1 ? 'A las 24 horas' : 'A los ' + d + ' días'; }
+  function msgDaysBody() {
+    var a = me(), cur = a.msgDays == null ? 7 : a.msgDays;
+    return '<p style="margin-top:0">¿Cuándo se borran tus conversaciones del chat? Se borran del teléfono y del servidor, para las dos personas.</p><div class="radios">' +
+      EVOff.MSG_DAYS.map(function (d) {
+        return '<button class="radio' + (cur === d ? ' on' : '') + '" role="radio" aria-checked="' + (cur === d) + '" data-act="msgdays" data-d="' + d + '"><i></i><span><b>' + msgDaysText(d) + '</b>' +
+          (d === 7 ? '<small>Lo normal</small>' : d === 0 ? '<small>Se guardan hasta que borres tu cuenta</small>' : '') + '</span></button>';
+      }).join('') + '</div>' +
+      '<p class="fine2">Si la otra persona eligió un plazo más corto, se usa el suyo: así nadie guarda una conversación más tiempo del que la otra quiso. Las ofertas se borran solas a las 24 horas.</p>';
+  }
   function curSheetBody() {
     var by = book().by || {};
     return '<p class="fine2" style="margin-top:0">Cada moneda lleva sus propias cuentas: lo que tienes, tu costo promedio y tu ganancia. El escáner y las ofertas también van por moneda. Las ganancias de todas se suman en CUP.</p><div class="curlist">' +
@@ -4170,10 +4196,12 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       }
     });
     var had = (Array.isArray(o.offers) ? o.offers.length : 0) + Object.keys(o.chats || {}).length;
-    OFS = EVOff.purge({ offers: Array.isArray(o.offers) ? o.offers.filter(okOffer) : [], chats: chats, read: o.read && typeof o.read === 'object' ? o.read : {} }, NOW());
+    OFS = EVOff.purge({ offers: Array.isArray(o.offers) ? o.offers.filter(okOffer) : [], chats: chats, read: o.read && typeof o.read === 'object' ? o.read : {} }, NOW(), chatKeep);
     if (OFS.offers.length + Object.keys(OFS.chats).length !== had) saveOfs();      // lo vencido se borra de verdad
   }
   function saveOfs() { lsSet(KO, OFS); }
+  function msgDaysOf(id) { var x = REG.list[id]; return x && x.msgDays != null ? x.msgDays : 7; }
+  function chatKeep(c) { return EVOff.keepMs(msgDaysOf(c.a), msgDaysOf(c.b)); }
   function unreadN() {
     var a = me(); if (!a) return 0;
     if (!blkCount()) return EVOff.unread(OFS, a.id);
@@ -4338,6 +4366,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function chatBody() {
     var a = me(), c = S.chat.c, other = c.a === a.id ? c.bn : c.an, oid = c.a === a.id ? c.b : c.a, h = '';
+    var kd = (REMOTE ? EVOff.keepMs(a.msgDays, null) : chatKeep(c)) / 864e5;
+    h += '<p class="chkeep">' + (kd ? 'Los mensajes se borran ' + (kd === 1 ? 'a las 24 horas' : 'a los ' + kd + ' días') + (REMOTE ? ' (o antes, si la otra persona lo eligió)' : '') : 'Los mensajes no se borran solos' + (REMOTE ? ' (salvo que la otra persona elija un plazo)' : '')) + ' · <button class="alink in" data-act="sheet-open" data-sheet="msgdays">cambiar</button></p>';
     h += '<div class="chhead"><b>' + esc(other) + '</b><span>' + esc(lineOf(c, c.a !== a.id)) + (c.offer.zone && EVPlaces.get(c.offer.zone) ? ' · ' + esc(EVPlaces.get(c.offer.zone).name) : '') + '</span>' +
       '<span class="chtools"><button class="alink in" data-act="ch-report">Reportar</button>' + (isBlocked(oid) ? '' : '<button class="alink in" data-act="ch-block">Bloquear</button>') + '</span></div>';
     if (isBlocked(oid)) {
@@ -4611,7 +4641,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     a.id = p.id; a.nick = p.nick; a.email = EVAcc.normEmail(email || a.email || ''); a.zone = p.zone; a.phone = p.phone;
     a.created = ms(p.created_at); a.verified = ms(p.verified_at) || null; a.gems = p.gems; a.ref = p.ref_slug; a.refDone = p.ref_done;
     a.exempt = !!p.is_admin; a.srvAdmin = !!p.is_admin; a.cancelled = p.cancelled_at ? { t: ms(p.cancelled_at) } : null;
-    a.remote = true; a.pay = a.pay || {}; a.gemLog = a.gemLog || []; a.passHash = 'srv'; a.termsAt = ms(p.terms_at) || null;
+    a.remote = true; a.pay = a.pay || {}; a.gemLog = a.gemLog || []; a.passHash = 'srv'; a.termsAt = ms(p.terms_at) || null; a.msgDays = p.msg_days == null ? 7 : +p.msg_days;
     return a;
   }
   function remoteLoadProfile() {
@@ -4922,7 +4952,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
           offers.forEach(function (o) { byId[o.id] = o; });
           chats.forEach(function (c) {
             var of = byId[c.offer_id];
-            map[c.id] = { id: c.id, offer: of ? { id: of.id, k: of.k, usd: of.usd, price: of.price, zone: of.zone } : { id: c.offer_id }, line: c.offer_line,
+            map[c.id] = { id: c.id, offer: of ? { id: of.id, k: of.k, usd: of.usd, cur: of.cur, price: of.price, zone: of.zone } : { id: c.offer_id }, line: c.offer_line,
               a: c.owner_id, an: c.owner_nick, b: c.other_id, bn: c.other_nick, t: ms(c.created_at), msgs: [] };
           });
           (msgs || []).forEach(function (m) { if (map[m.chat_id]) map[m.chat_id].msgs.push({ from: m.from_id, text: m.text, t: ms(m.created_at) }); });
@@ -5118,6 +5148,12 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'ad-rep-done': function (el) { repDone(el.getAttribute('data-id')); },
     'ad-rep-cancel': function (el) { if (REMOTE) return rAdminAct('cancel', el); ACT['ad-cancel'](el); },
     'acc-delete': accDelete,
+    'msgdays': function (el) {
+      var a = me(), d = +el.getAttribute('data-d'), prev = a.msgDays;
+      var done = function () { a.msgDays = d; saveReg(); if (!REMOTE) { loadOfs(); saveOfs(); } drawSheet(); render(); toast({ title: 'Mensajes: ' + msgDaysText(d).toLowerCase(), ms: 2500 }); };
+      if (REMOTE) return SB.rest('PATCH', 'profiles?id=eq.' + a.id, { msg_days: d }).then(done, function (e) { a.msgDays = prev; toast({ title: 'No se pudo guardar', sub: sbMsg(e), tone: 'loss', ms: 3500 }); });
+      done();
+    },
     'cur-pick': function (el) { S.cur = el.getAttribute('data-c'); savePrefs(); S.sel = null; closeSheet(); render(); toast({ title: 'Ahora ves tus ' + C().many, sub: 'COMPRÉ, VENDÍ, el escáner y las ofertas van en ' + C().name + '.', ms: 3000 }); },
     'cur': function (el) { S.cur = el.getAttribute('data-c'); savePrefs(); S.sel = null; render(); },
     'ofn-cur': function (el) { S.ofn.cur = el.getAttribute('data-c'); S.ofn.price = ''; S.ofn.err = ''; drawSheet(); },
