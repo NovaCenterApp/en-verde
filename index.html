@@ -732,6 +732,38 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 .pushcard .pc-t { display: grid; gap: 4px; font-size: 15px; }
 .pushcard .pc-t span { color: var(--muted); }
 .pushcard .pc-b { display: flex; gap: 10px; }
+/* monedas */
+.curbar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; margin: 0 -2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.curbar::-webkit-scrollbar { display: none; }
+.curbar.in { padding-bottom: 14px; }
+.curc { flex: none; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font: 700 15px/1 inherit; font-family: inherit; color: var(--ink); }
+.curc.on { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.bycur { display: grid; gap: 2px; margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.bc { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 10px; padding: 6px 0; }
+.bc-n { font-weight: 800; }
+.bc-s { color: var(--muted); font-size: 14px; }
+.bc b { font-size: 18px; } .bc b.neg { color: var(--loss); } .bc small { font-weight: 600; color: var(--muted); }
+.refhero { font-size: 54px; text-align: center; margin: 4px 0 6px; }
+.steps { margin: 10px 0 16px; padding-left: 22px; display: grid; gap: 10px; font-size: 15px; }
+.reflink { display: block; margin-top: 4px; font-size: 13px; color: var(--brand); word-break: break-all; }
+.home .curbar { padding: 0 0 8px; gap: 6px; }
+.home .curc { min-height: 32px; padding: 0 13px; font-size: 14px; }
+@media (max-height: 640px) { .home .curbar { padding-bottom: 4px; } .home .curc { min-height: 28px; font-size: 13px; padding: 0 11px; } }
+.stock .card { position: relative; }
+.curpick { position: absolute; top: 8px; right: 8px; min-height: 30px; padding: 0 10px; border-radius: 999px; border: 0; background: var(--brand); color: var(--on-brand); font: 800 13px/1 inherit; font-family: inherit; }
+.curlist { display: grid; gap: 8px; }
+.curitem { display: grid; grid-template-columns: 74px 1fr auto; align-items: center; gap: 12px; text-align: left; padding: 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); font-family: inherit; color: var(--ink); }
+.curitem.on { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.ci-n { font-weight: 900; font-size: 18px; }
+.ci-t { display: grid; gap: 2px; } .ci-t span { font-size: 13px; color: var(--muted); }
+.ci-ok svg { width: 22px; height: 22px; color: var(--brand); }
+.top .curpick { position: static; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; margin-right: 2px; border-radius: 999px; border: 1.5px solid var(--brand); background: transparent; color: var(--brand); font: 800 13px/1 inherit; font-family: inherit; }
+.top .curpick i { font-style: normal; font-size: 10px; }
+.apkline { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: 14px; border: 1.5px dashed var(--brand); color: var(--ink); text-decoration: none; }
+.apkline svg { width: 22px; height: 22px; color: var(--brand); flex: none; }
+.apkline span { display: grid; gap: 2px; } .apkline small { color: var(--muted); }
+.top .brand { white-space: nowrap; }
+@media (max-width: 370px) { .top .curpick { min-height: 28px; padding: 0 8px; font-size: 12px; } .top .brand { font-size: 17px; } .top .icon-btn { width: 38px; } }
 
 </style>
 </head>
@@ -1070,17 +1102,20 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   /* Pone al día la cola de registros a partir de las operaciones de la persona.
      out: { [idOperación]: { r, z, k, p, t, sent } } — se queda SOLO en el teléfono (el id de la operación nunca sale).
      Devuelve la cola nueva y los códigos que hay que retirar del servicio (operación borrada o corregida). */
+  /* Cada moneda tiene su propio escáner: la zona de una moneda que no es USD es «zona~MONEDA». */
+  function zk(zone, cur) { return !zone || !cur || cur === 'USD' ? zone : zone + '~' + cur; }
+  function curPart(z) { var i = String(z || '').indexOf('~'); return i < 0 ? 'USD' : String(z).slice(i + 1); }
   function reconcile(out, ops, ctx) {
     var now = ctx.now, next = {}, retract = [], by = {}, on = !!(ctx.share && ctx.zone);
     (ops || []).forEach(function (o) { if (o && !o.del) by[o.id] = o; });
     function fresh(o) {
-      return { r: newId(ctx.rand), z: ctx.zone, k: o.type === 'sell' ? 's' : 'b', p: o.price, t: roundTime(Math.min(o.t, now)), sent: 0 };
+      return { r: newId(ctx.rand), z: zk(ctx.zone, o.cur), k: o.type === 'sell' ? 's' : 'b', p: o.price, t: roundTime(Math.min(o.t, now)), sent: 0 };
     }
     Object.keys(out || {}).forEach(function (id) {
       var e = out[id], o = by[id];
       if (!on || !o || !inWin(o.t, now, WIN_7)) { if (e.sent) retract.push(e.r); return; }
       var k = o.type === 'sell' ? 's' : 'b', t = roundTime(Math.min(o.t, now));
-      if (e.k === k && e.p === o.price && e.t === t) next[id] = e;
+      if (e.k === k && e.p === o.price && e.t === t && curPart(e.z) === (o.cur || 'USD')) next[id] = e;
       else { if (e.sent) retract.push(e.r); next[id] = fresh(o); }
     });
     if (on) Object.keys(by).forEach(function (id) {
@@ -1321,7 +1356,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   return {
     WIN_24: WIN_24, WIN_7: WIN_7, FUTURE: FUTURE, BUCKET: BUCKET, MIN_OTHERS: MIN_OTHERS, HIST_MIN: HIST_MIN, OWN_N: OWN_N,
     median: median, quantile: quantile, histStats: histStats, levelOf: levelOf, niceStep: niceStep, scaleFor: scaleFor, bandsFor: bandsFor,
-    roundTime: roundTime, newId: newId, toWire: toWire, reconcile: reconcile, outRecords: outRecords, flush: flush,
+    roundTime: roundTime, newId: newId, zk: zk, toWire: toWire, reconcile: reconcile, outRecords: outRecords, flush: flush,
     compute: compute, robust: robust, wMedian: wMedian, OFFER_W: OFFER_W, anchors: anchors, exampleFeed: exampleFeed, ago: ago, hash32: hash32
   };
 });
@@ -1544,11 +1579,28 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
+  /* ---------- monedas ---------- USD es la principal; cada moneda lleva sus propias cuentas (costo promedio y ganancia),
+     y todas las ganancias son en CUP, así que se suman. f: valor aproximado frente al USD (solo para los ejemplos de la beta). */
+  var CURS = [
+    { k: 'USD', sym: '$', post: '', name: 'USD', one: 'dólar', many: 'dólares', f: 1 },
+    { k: 'EUR', sym: '€', post: '', name: 'EUR', one: 'euro', many: 'euros', f: 1.1 },
+    { k: 'CAD', sym: 'C$', post: '', name: 'CAD', one: 'dólar canadiense', many: 'dólares canadienses', f: 0.72 },
+    { k: 'MXN', sym: 'MX$', post: '', name: 'MXN', one: 'peso mexicano', many: 'pesos mexicanos', f: 0.055 },
+    { k: 'MLC', sym: '', post: ' MLC', name: 'MLC', one: 'MLC', many: 'MLC', f: 0.85 },
+    { k: 'CLA', sym: '', post: ' Clás.', name: 'Clásica', one: 'dólar en Clásica', many: 'dólares en Clásica', f: 0.95 }
+  ];
+  var CUR = {}; CURS.forEach(function (c) { CUR[c.k] = c; });
+  function cur(k) { return CUR[k] || CUR.USD; }
+  function curOf(o) { return o && CUR[o.cur] ? o.cur : 'USD'; }
+  function amt(n, k) { var c = cur(k); return c.sym + fmt(n, 2) + c.post; }
+
   function mkOp(p, now) {
-    return {
+    var o = {
       id: p.id || uid(), type: p.type, usd: p.usd, price: p.price, t: p.t, u: now, c: p.c || now,   // c: cuándo se registró (no cambia al corregirla)
       extra: p.extra == null ? null : p.extra, del: 0
     };
+    if (p.cur && p.cur !== 'USD' && CUR[p.cur]) o.cur = p.cur;     // las de USD no lo llevan (como antes)
+    return o;
   }
   function tomb(o, now) { return { id: o.id, del: 1, u: now, t: o.t }; }   // sin montos: solo para sincronizar el borrado
 
@@ -1566,7 +1618,9 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (!type || !(usd > 0) || !(price > 0) || usd > 1e8 || price > 1e7) return null;
     var extra = o.extra != null && Number(o.extra) > 0 && Number(o.extra) <= 1e7 ? Number(o.extra) : null;
     var c = Number(o.c); if (!isFinite(c) || c <= 0 || c > u) c = u;          // las de antes no lo traían: se toma su última versión
-    return { id: id || uid(), type: type, usd: usd, price: price, t: t, u: u, c: c, extra: extra, del: 0 };
+    var r = { id: id || uid(), type: type, usd: usd, price: price, t: t, u: u, c: c, extra: extra, del: 0 };
+    if (o.cur && o.cur !== 'USD' && CUR[o.cur]) r.cur = o.cur;
+    return r;
   }
   function cleanList(list) {
     var out = [], bad = 0;
@@ -1594,15 +1648,17 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
      Si se vende más de lo registrado, la parte sin costo conocido usa `extra` si el usuario lo dio;
      si no, esa parte no cuenta en la ganancia y la venta queda marcada como parcial. */
 
-  function replay(ops) {
-    var live = liveOps(ops).map(function (o, i) { return { o: o, i: i }; });
+  /* Cada moneda se repite por separado (su cantidad en mano y su costo promedio). Las filas traen la moneda y la ganancia en CUP.
+     replay(ops, k) solo con una moneda. Devuelve usd/cost/avg de USD (o de k) y `by` con cada moneda. */
+  function replay(ops, onlyCur) {
+    var live = liveOps(ops).filter(function (o) { return !onlyCur || curOf(o) === onlyCur; }).map(function (o, i) { return { o: o, i: i }; });
     live.sort(function (a, b) { return (a.o.t - b.o.t) || (a.i - b.i); });
-    var usd = 0, cost = 0, rows = [];
+    var st = {}, rows = [];
     live.forEach(function (w) {
-      var o = w.o;
+      var o = w.o, ck = curOf(o), S = st[ck] || (st[ck] = { usd: 0, cost: 0 }), usd = S.usd, cost = S.cost;
       var avgBefore = usd > EPS ? cost / usd : 0;
       var r = {
-        id: o.id, type: o.type, usd: o.usd, price: o.price, t: o.t, extra: o.extra == null ? null : o.extra,
+        id: o.id, type: o.type, usd: o.usd, price: o.price, t: o.t, extra: o.extra == null ? null : o.extra, cur: ck,
         total: o.usd * o.price, usdBefore: usd, avgBefore: avgBefore,
         profit: 0, usdTracked: 0, usdShort: 0, usdKnown: 0, partial: false, noCost: false
       };
@@ -1627,11 +1683,15 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       }
       if (usd < EPS) { usd = 0; cost = 0; }
       usd = round6(usd); cost = round6(cost);
+      S.usd = usd; S.cost = cost;
       r.usdAfter = usd;
       r.avgAfter = usd > EPS ? cost / usd : 0;
       rows.push(r);
     });
-    return { rows: rows, usd: usd, cost: cost, avg: usd > EPS ? cost / usd : 0 };
+    var by = {};
+    Object.keys(st).forEach(function (k) { var s = st[k]; by[k] = { usd: s.usd, cost: s.cost, avg: s.usd > EPS ? s.cost / s.usd : 0 }; });
+    var main = by[onlyCur || 'USD'] || { usd: 0, cost: 0, avg: 0 };
+    return { rows: rows, usd: main.usd, cost: main.cost, avg: main.avg, by: by };
   }
 
   /* Vista previa de la operación que se está escribiendo, con la misma lógica que el guardado. */
@@ -1642,6 +1702,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       usd: draft.usd > 0 ? draft.usd : 0, price: draft.price > 0 ? draft.price : 0,
       t: draft.t, u: now, extra: draft.extra > 0 ? draft.extra : null, del: 0
     };
+    if (draft.cur && draft.cur !== 'USD') probe.cur = draft.cur;
     var rp = replay(rest.concat([probe]));
     for (var i = 0; i < rp.rows.length; i++) if (rp.rows[i].id === '__probe__') return rp.rows[i];
     return null;
@@ -1771,6 +1832,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
 
   return {
+    CURS: CURS, cur: cur, curOf: curOf, amt: amt,
     EPS: EPS, num: num, fmt: fmt, money: money, gain: gain, signed: signed,
     sod: sod, sow: sow, som: som, daysBetween: daysBetween, fmtTime: fmtTime, fmtDay: fmtDay,
     toLocalInput: toLocalInput, fromLocalInput: fromLocalInput, cap: cap,
@@ -2078,27 +2140,29 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   /* null si está bien; si no, el motivo para mostrarlo */
   function check(d) {
     if (d.k !== 'buy' && d.k !== 'sell') return 'Elige si compras o vendes.';
-    if (!(isNum(d.usd) && d.usd > 0)) return 'Escribe cuántos dólares.';
-    if (d.usd > USD_MAX) return 'Hasta $' + USD_MAX.toLocaleString('en-US') + ' por oferta.';
-    if (!(isNum(d.price) && d.price > 0 && d.price < 1e7)) return 'Escribe el precio por dólar.';
+    if (d.usd != null && !(isNum(d.usd) && d.usd > 0)) return 'La cantidad no es válida. Déjala vacía si no quieres poner una.';
+    if (d.usd != null && d.usd > USD_MAX) return 'Hasta ' + USD_MAX.toLocaleString('en-US') + ' por oferta.';
+    if (!(isNum(d.price) && d.price > 0 && d.price < 1e7)) return 'Escribe el precio.';
     if (!d.zone) return 'Elige tu municipio.';
     if (d.contact !== 'phone' && d.contact !== 'chat') return 'Elige cómo te contactan.';
     if (d.contact === 'phone' && !d.phone) return 'Para mostrar tu número, primero agrégalo en tu perfil.';
     return null;
   }
   function make(d, now, id) {
-    return { id: id, uid: d.uid, nick: d.nick, zone: d.zone, k: d.k, usd: d.usd, price: d.price, t: now, exp: now + TTL,
+    return { id: id, uid: d.uid, nick: d.nick, zone: d.zone, k: d.k, usd: d.usd > 0 ? d.usd : null, cur: d.cur || 'USD', price: d.price, t: now, exp: now + TTL,
       contact: d.contact, phone: d.contact === 'phone' ? d.phone : null };
   }
+  function curOf(o) { return (o && o.cur) || 'USD'; }
   function mineActive(list, uid, now) { return (list || []).filter(function (o) { return o.uid === uid && active(o, now); }); }
-  function mineOf(list, uid, k, now) { return mineActive(list, uid, now).filter(function (o) { return o.k === k; })[0] || null; }
+  /* Una de compra y una de venta por moneda */
+  function mineOf(list, uid, k, now, cur) { return mineActive(list, uid, now).filter(function (o) { return o.k === k && curOf(o) === (cur || 'USD'); })[0] || null; }
 
   /* Ofertas para ver. side: 'sell' = los que venden dólares (para quien quiere comprar: más barato primero)
      · 'buy' = los que compran dólares (para quien quiere vender: más caro primero). where: 'mun' | 'prov' */
   function board(list, o) {
     var now = o.now, z = o.zone, pv = provOf(z);
     var out = (list || []).filter(function (x) {
-      return active(x, now) && x.k === o.side && (o.where === 'prov' ? provOf(x.zone) === pv : x.zone === z);
+      return active(x, now) && x.k === o.side && curOf(x) === (o.cur || 'USD') && (o.where === 'prov' ? provOf(x.zone) === pv : x.zone === z);
     });
     out.sort(function (a, b) {
       var d = o.side === 'sell' ? a.price - b.price : b.price - a.price;
@@ -2142,13 +2206,15 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function hash32(s) { var h = 2166136261; s = String(s); for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function rng(a) { return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function snap(p) { return p >= 200 ? Math.round(p / 5) * 5 : Math.round(p); }
-  function examples(zone, now, anch) {
-    var slot = Math.floor(now / HOUR), r = rng(hash32(zone + '|of|' + slot)), out = [], n = 6 + Math.floor(r() * 4);
+  function examples(zone, now, anch, cur) {
+    cur = cur || 'USD';
+    var slot = Math.floor(now / HOUR), r = rng(hash32(zone + '|of|' + slot + (cur === 'USD' ? '' : cur))), out = [], n = 6 + Math.floor(r() * 4);
     for (var i = 0; i < n; i++) {
       var k = r() < 0.5 ? 'sell' : 'buy', base = k === 'sell' ? anch.s : anch.b;
       var t = slot * HOUR - Math.floor(r() * 20 * HOUR);           // la hora sale del bloque, no del reloj: estable toda la hora
-      out.push({ id: 'ex-' + slot + '-' + i, uid: 'ex', nick: NAMES[Math.floor(r() * NAMES.length)], zone: zone, k: k,
-        usd: [20, 50, 100, 100, 200, 300, 500][Math.floor(r() * 7)], price: snap(base * (1 + (r() - 0.5) * 0.03)),
+      var q = [20, 50, 100, 100, 200, 300, 500, 0, 0][Math.floor(r() * 9)];
+      out.push({ id: 'ex-' + cur + slot + '-' + i, uid: 'ex', nick: NAMES[Math.floor(r() * NAMES.length)], zone: zone, k: k, cur: cur,
+        usd: q || null, price: snap(base * (1 + (r() - 0.5) * 0.03)),
         t: t, exp: t + TTL, contact: 'none', phone: null, ex: 1 });
     }
     return out;
@@ -2156,7 +2222,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
 
   return {
     TTL: TTL, USD_MAX: USD_MAX, MSG_MAX: MSG_MAX, CHAT_KEEP: CHAT_KEEP,
-    active: active, check: check, make: make, mineActive: mineActive, mineOf: mineOf, board: board, purge: purge, provOf: provOf,
+    active: active, check: check, curOf: curOf, make: make, mineActive: mineActive, mineOf: mineOf, board: board, purge: purge, provOf: provOf,
     threadId: threadId, cleanMsg: cleanMsg, myThreads: myThreads, lastT: lastT, unread: unread, waNumber: waNumber, examples: examples
   };
 });
@@ -2394,10 +2460,11 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       S.zone = typeof p.zone === 'string' && EVPlaces.get(p.zone) ? p.zone : null;
       S.zoneAsked = !!p.zoneAsked || !!S.zone;
       S.share = p.share !== false;
+      S.cur = p.cur && EV.cur(p.cur).k === p.cur ? p.cur : 'USD';
     }
   })();
   function saveReal() { if (K.real) lsSet(K.real, { v: 1, ops: S.real }); }
-  function savePrefs() { lsSet(K.prefs, { hide: S.hide, cloud: S.cloudOn, zone: S.zone, zoneAsked: S.zoneAsked, share: S.share }); }
+  function savePrefs() { lsSet(K.prefs, { hide: S.hide, cloud: S.cloudOn, zone: S.zone, zoneAsked: S.zoneAsked, share: S.share, cur: S.cur || 'USD' }); }
   function saveOb() { if (K.zone) lsSet(K.zone, { v: 1, out: OB.out, ret: OB.ret }); }
 
   function ops() { return S.mode === 'demo' ? S.demo : S.real; }
@@ -2409,8 +2476,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var list = ops(), day = EV.sod(NOW());
     if (memo.src !== list || memo.day !== day) {
       var rp = EV.replay(list);
-      memo = { src: list, day: day, val: { rows: rp.rows, usd: rp.usd, avg: rp.avg, tot: EV.periodTotals(rp.rows, NOW()) } };
+      memo = { src: list, day: day, cur: null, val: { rows: rp.rows, by: rp.by, tot: EV.periodTotals(rp.rows, NOW()) } };
     }
+    var k = S.cur || 'USD', st = memo.val.by[k] || { usd: 0, avg: 0 };
+    memo.val.usd = st.usd; memo.val.avg = st.avg; memo.val.cur = k;
     return memo.val;
   }
   function rowById(id) { var r = book().rows; for (var i = 0; i < r.length; i++) if (r[i].id === id) return r[i]; return null; }
@@ -2425,7 +2494,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (cloud) cloud.touch();
   }
   /* Deshacer = volver a como estaba antes, como un cambio nuevo (así también viaja a la nube). */
-  function sameOp(a, b) { return !a.del && !b.del && a.type === b.type && a.usd === b.usd && a.price === b.price && a.t === b.t && (a.extra || null) === (b.extra || null); }
+  function sameOp(a, b) { return !a.del && !b.del && (a.cur || 'USD') === (b.cur || 'USD') && a.type === b.type && a.usd === b.usd && a.price === b.price && a.t === b.t && (a.extra || null) === (b.extra || null); }
   /* Cada cambio lleva una "versión" (hora). Para que un cambio siempre le gane a la versión sobre la que se hizo,
      aunque el reloj del teléfono vaya atrasado respecto al de otro, la versión nueva es siempre mayor que la anterior. */
   function bump(o) { return Math.max(NOW(), (o && o.u ? o.u : 0) + 1); }
@@ -2450,7 +2519,15 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   /* ---------- formato (con modo discreto) ---------- */
   var DOTS = '•••••';
   function mCUP(n) { return S.hide ? DOTS : EV.money(n); }
-  function mUSD(n) { return S.hide ? '$•••' : '$' + EV.money(n); }
+  function mUSD(n, k) { var c = EV.cur(k || S.cur); return S.hide ? c.sym + '•••' + c.post : EV.amt(n, c.k); }
+  function C(k) { return EV.cur(k || S.cur); }
+  function capW(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  /* fila de monedas: USD primero; cambiarla cambia cuentas, escáner y ofertas */
+  function curBar(extra) {
+    return '<div class="curbar" role="tablist" aria-label="Moneda">' + EV.CURS.map(function (c) {
+      return '<button class="curc' + (S.cur === c.k ? ' on' : '') + '" data-act="cur" data-c="' + c.k + '" aria-pressed="' + (S.cur === c.k) + '">' + c.name + '</button>';
+    }).join('') + '</div>';
+  }
   function mSigned(n) { return S.hide ? DOTS : EV.signed(n); }
   function signedDec(n) { return (n > 0 ? '+' : '') + EV.fmt(n, 1); }
   function fit(str, a, b) { return str.length > b ? ' s' : str.length > a ? ' m' : ''; }
@@ -2491,13 +2568,14 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       var c = S.cloud.status, map = { ok: ['ok', 'Respaldado'], syncing: ['sync', 'Guardando…'], offline: ['sync', 'Sin conexión'], error: ['bad', 'Revisar respaldo'], na: ['', 'Solo en este teléfono'], off: ['', 'Solo en este teléfono'] };
       if (map[c]) pill = '<button class="pill ' + map[c][0] + '" data-act="tab" data-tab="cfg"><i></i>' + map[c][1] + '</button>';
     }
-    return '<header class="top"><div class="brand">' + (LOGO_IMG || LOGO) + 'En Verde</div><div class="top-r">' + pill +
+    var cp = S.mode === 'real' || S.mode === 'demo' ? '<button class="curpick" data-act="sheet-open" data-sheet="cur" aria-label="Moneda: ' + C().name + '. Cambiar">' + C().name + '<i>▾</i></button>' : '';
+    return '<header class="top"><div class="brand">' + (LOGO_IMG || LOGO) + 'En Verde</div><div class="top-r">' + pill + cp +
       '<button class="icon-btn msgbtn" data-act="sheet-open" data-sheet="msgs" aria-label="Mensajes' + (unreadN() ? ', ' + unreadN() + ' sin leer' : '') + '">' + I.chat + (unreadN() ? '<i class="tbadge">' + (unreadN() > 9 ? '9+' : unreadN()) + '</i>' : '') + '</button>' +
       '<button class="icon-btn" data-act="sheet-open" data-sheet="calc" aria-label="Calculadora">' + I.calc + '</button>' +
       '<button class="icon-btn" data-act="hide" aria-pressed="' + S.hide + '" aria-label="' + (S.hide ? 'Mostrar cifras' : 'Ocultar cifras') + '">' + (S.hide ? I.eyeOff : I.eye) + '</button></div></header>';
   }
   function strip(b) {
-    return '<div class="strip"><span>En mano <b>' + mUSD(b.usd) + '</b></span><span>Costo prom. <b>' + (b.usd > 0 ? mCUP(b.avg) + ' CUP' : '—') + '</b></span></div>';
+    return '<div class="strip"><span>' + (S.cur !== 'USD' ? C().name + ' · ' : '') + 'En mano <b>' + mUSD(b.usd) + '</b></span><span>Costo prom. <b>' + (b.usd > 0 ? mCUP(b.avg) + ' CUP' : '—') + '</b></span></div>';
   }
   function tabsBar() {
     var T = [['home', 'Inicio', I.home], ['offers', 'Ofertas', I.tag], ['hist', 'Historial', I.list], ['gains', 'Ganancias', I.chart], ['cfg', 'Ajustes', I.sliders]], un = unreadN();
@@ -2509,14 +2587,14 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function dock() {
     var lk = blocked(), c = lk ? ' locked' : '';
     return '<div class="dock">' +
-      '<button class="bigbtn buy' + c + '" data-act="new" data-type="buy">' + (lk ? I.lock : I.down) + '<span class="t">COMPRÉ</span><span class="s">' + (lk ? 'Paga la cuota' : 'Entran dólares') + '</span></button>' +
-      '<button class="bigbtn sell' + c + '" data-act="new" data-type="sell">' + (lk ? I.lock : I.up) + '<span class="t">VENDÍ</span><span class="s">' + (lk ? 'Paga la cuota' : 'Salen dólares') + '</span></button></div>';
+      '<button class="bigbtn buy' + c + '" data-act="new" data-type="buy">' + (lk ? I.lock : I.down) + '<span class="t">COMPRÉ</span><span class="s">' + (lk ? 'Paga la cuota' : 'Entran ' + C().many) + '</span></button>' +
+      '<button class="bigbtn sell' + c + '" data-act="new" data-type="sell">' + (lk ? I.lock : I.up) + '<span class="t">VENDÍ</span><span class="s">' + (lk ? 'Paga la cuota' : 'Salen ' + C().many) + '</span></button></div>';
   }
   var DEMO_BAR = '<div class="demo"><span>Modo ejemplo · tus datos no se tocan</span><button data-act="demo-off">Salir</button></div>';
 
   function rowHTML(r) {
     var buy = r.type === 'buy', h = S.hide, res;
-    var main = h ? (buy ? 'Compra' : 'Venta') : '$' + EV.money(r.usd) + ' a ' + EV.money(r.price);
+    var main = h ? (buy ? 'Compra' : 'Venta') + (r.cur !== 'USD' ? ' · ' + C(r.cur).name : '') : EV.amt(r.usd, r.cur) + ' a ' + EV.money(r.price);
     var sub = EV.fmtTime(r.t) + (h ? '' : ' · ' + EV.money(r.total) + ' CUP') + (S.mode === 'real' && !EVAcc.canChange(find(r.id), NOW()) ? ' · fija' : '');
     if (buy) res = '<span class="res">' + (h ? '' : '→ ' + EV.money(r.avgAfter)) + '<small>' + (h ? '' : 'costo prom.') + '</small></span>';
     else if (r.noCost) res = '<span class="res warn">Sin costo<small>no cuenta</small></span>';
@@ -2531,8 +2609,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function viewHome(b) {
     var t = b.tot, has = EV.liveOps(ops()).length > 0, h = '<div class="screen home" id="screen">';
     var usdS = mUSD(b.usd), avgS = b.usd > 0 ? mCUP(b.avg) : '—';
-    h += '<div class="stock"><div class="card"><div class="lbl">Dólares en mano</div><div class="val' + fit(usdS, 7, 9) + '">' + usdS + '</div><div class="sub">compras menos ventas</div></div>' +
-      '<div class="card"><div class="lbl">Costo promedio</div><div class="val' + fit(avgS, 7, 9) + '">' + avgS + '</div><div class="sub">CUP por cada $</div></div></div>';
+    h += '<div class="stock"><div class="card"><div class="lbl">' + (S.cur === 'USD' ? 'Dólares' : C().name) + ' en mano</div><div class="val' + fit(usdS, 7, 9) + '">' + usdS + '</div><div class="sub">compras menos ventas</div></div>' +
+      '<div class="card"><div class="lbl">Costo promedio</div><div class="val' + fit(avgS, 7, 9) + '">' + avgS + '</div><div class="sub">CUP por ' + (S.cur === 'USD' ? 'cada $' : C().one) + '</div></div></div>';
     h += '<section class="hero" aria-label="Ganado hoy"><div class="lbl">Ganado hoy</div>' + heroNum(t.today) + '</section>';
     h += '<button class="scanbtn" data-act="scan-open"><span class="sb-i">' + I.gauge + '</span><span class="sb-t"><span class="sb-1">Escanear precio en mi zona</span>' +
       '<span class="sb-2">' + (S.zone ? esc(zoneLabel()) : 'Elige tu municipio para empezar') + '</span></span>' + I.chev + '</button>';
@@ -2593,9 +2671,11 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var a = Math.abs(v), s = scale === 'M' ? EV.fmt(a / 1e6, 1) + 'M' : scale === 'K' ? EV.fmt(a / 1000, 1) + 'K' : EV.fmt(a, 0);
     return (v < 0 ? '−' : '') + (a === 0 ? '0' : s);
   }
+  var GAINS_MULTI = false;
   function salesText(g) {
-    if (!g.sales) return 'Sin ventas' + (g.buys && !S.hide ? ' · compraste $' + EV.money(g.usdBought) : '');
-    return g.sales + (g.sales === 1 ? ' venta' : ' ventas') + (S.hide ? '' : ' · $' + EV.money(g.usdSold) + ' vendidos');
+    if (GAINS_MULTI) return g.sales ? g.sales + (g.sales === 1 ? ' venta' : ' ventas') : 'Sin ventas';
+    if (!g.sales) return 'Sin ventas' + (g.buys && !S.hide ? ' · compraste ' + mUSD(g.usdBought) : '');
+    return g.sales + (g.sales === 1 ? ' venta' : ' ventas') + (S.hide ? '' : ' · ' + mUSD(g.usdSold) + ' vendidos');
   }
   function chartHTML(ser, mode, sel) {
     var now = NOW(), maxPos = 0, maxNeg = 0;
@@ -2630,16 +2710,27 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function viewGains(b) {
     var now = NOW(), rows = b.rows, mode = S.gm, cfg = GM[mode];
-    var known = 0, sold = 0, nSales = 0;
-    rows.forEach(function (r) { if (r.type === 'sell') { nSales++; known += r.usdKnown; sold += r.usd; } });
+    var known = 0, sold = 0, nSales = 0, byC = {}, curs = [];
+    rows.forEach(function (r) {
+      if (r.type !== 'sell') return;
+      nSales++; known += r.usdKnown; sold += r.usd;
+      var g = byC[r.cur] || (byC[r.cur] = { n: 0, sold: 0, known: 0, profit: 0 }); if (!g.n) curs.push(r.cur);
+      g.n++; g.sold += r.usd; g.known += r.usdKnown; g.profit += r.profit;
+    });
+    var multi = curs.length > 1, one = curs[0] || S.cur;
+    GAINS_MULTI = multi;
     var total = b.tot.total, per = known > 0 ? total / known : null;
     var h = '<div class="screen" id="screen"><h1 class="ttl">Ganancias</h1>';
     var tS = S.hide ? DOTS : EV.signed(total);
     h += '<section class="card sumcard"><div class="lbl">Ganancia total</div><div class="num' + fit(tS, 8, 11) + (total < 0 && !S.hide ? ' neg' : '') + '">' + tS + '<small> CUP</small></div>' +
       '<div class="pers">' + mini('Hoy', b.tot.today) + mini('Esta semana', b.tot.week) + mini('Este mes', b.tot.month) + '</div>' +
-      '<div class="row3"><div><div class="lbl">Ventas</div><div class="mn">' + nSales + '</div></div>' +
-      '<div><div class="lbl">Vendidos</div><div class="mn' + fit(mUSD(sold), 7, 9) + '">' + mUSD(sold) + '</div></div>' +
-      '<div><div class="lbl">Por dólar</div><div class="mn">' + (per == null ? '—' : S.hide ? DOTS : signedDec(per)) + '</div></div></div></section>';
+      (multi ? '<div class="bycur">' + EV.CURS.filter(function (c) { return byC[c.k]; }).map(function (c) {
+          var g = byC[c.k];
+          return '<div class="bc"><span class="bc-n">' + c.name + '</span><span class="bc-s">' + g.n + (g.n === 1 ? ' venta' : ' ventas') + (S.hide ? '' : ' · ' + EV.amt(g.sold, c.k)) + '</span><b class="' + (g.profit < -0.5 ? 'neg' : '') + '">' + mSigned(g.profit) + '<small> CUP</small></b></div>';
+        }).join('') + '</div></section>'
+      : '<div class="row3"><div><div class="lbl">Ventas</div><div class="mn">' + nSales + '</div></div>' +
+      '<div><div class="lbl">Vendidos</div><div class="mn' + fit(mUSD(sold, one), 7, 9) + '">' + mUSD(sold, one) + '</div></div>' +
+      '<div><div class="lbl">Por ' + (one === 'USD' ? 'dólar' : C(one).one) + '</div><div class="mn">' + (per == null ? '—' : S.hide ? DOTS : signedDec(per)) + '</div></div></div></section>');
     if (!nSales) {
       return h + '<div class="empty"><h3>Todavía no hay ventas</h3><p>La ganancia sale de cada venta: precio de venta menos costo promedio, por los dólares vendidos. Registra tu primera venta con VENDÍ.</p></div></div>';
     }
@@ -2654,7 +2745,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       groups.map(function (g) {
         var pd = g.usdKnown > 0 ? g.profit / g.usdKnown : null;
         var cls = !g.sales ? 'muted' : g.profit > 0.5 ? 'gain' : g.profit < -0.5 ? 'loss' : '';
-        var res = g.sales ? '<span class="res ' + cls + '">' + mSigned(g.profit) + '<small>' + (pd != null && !S.hide ? signedDec(pd) + ' por $' : 'CUP') + '</small></span>' : '<span class="res muted">—</span>';
+        var res = g.sales ? '<span class="res ' + cls + '">' + mSigned(g.profit) + '<small>' + (pd != null && !S.hide && !GAINS_MULTI ? signedDec(pd) + ' por ' + (S.cur === 'USD' ? '$' : C().one) : 'CUP') + '</small></span>' : '<span class="res muted">—</span>';
         return '<div class="row prow"><span class="mid"><span class="main">' + EV.periodLabel(g.start, mode, now) + '</span><span class="sub">' + salesText(g) + (g.partial ? ' · parcial' : '') + '</span></span>' + res + '</div>';
       }).join('') + '</div>';
     return h + '</div>';
@@ -2713,7 +2804,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (REMOTE) h += '<div class="group"><div class="gh">Avisos</div>' + PUSH.row() + '</div>';
     h += '<div class="group"><div class="gh">Comunidad</div>' + tgLink('set tgrow', 'Canal de En Verde en Telegram<small>Únete para estar al día con las novedades</small>') + '</div>';
     h += '<div class="group"><div class="gh">Ayuda</div>' + navRow('sheet-open', 'data-sheet="how"', 'Cómo se calculan las ganancias', 'Costo promedio y ganancia de cada venta.') +
-      (REMOTE && !standalone() ? navRow('sheet-open', 'data-sheet="install"', 'Ponerla en la pantalla de inicio', 'Ábrela como una app, aunque no tengas internet.') : '') + '</div>';
+      (REMOTE && !standalone() ? navRow('sheet-open', 'data-sheet="install"', 'Ponerla en la pantalla de inicio', 'Ábrela como una app, aunque no tengas internet.') : '') +
+      (apkOffer() ? '<a class="set" href="' + APK_URL + '" rel="noopener"><span class="st">Descargar la app para Android<small>APK: instálala y pásala a otros por WhatsApp o Zapya</small></span>' + I.chev + '</a>' : '') + '</div>';
     h += '<div class="group"><div class="gh">Probar</div>' + (S.mode === 'demo'
       ? navRow('demo-off', '', 'Salir del ejemplo', 'Volver a tus operaciones.')
       : navRow('demo-on', '', 'Ver con datos de ejemplo', 'Una semana inventada. No toca tus datos.')) + '</div>';
@@ -2730,6 +2822,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var k = S.sheet;
     S.sheet = null; $('#sheet').innerHTML = ''; S.pf = null; S.tgHi = null; drawToast();
     if (k === 'pay') { S.pay = null; openSheet('fee'); return; }
+    if (k === 'tg' && S.nextRef && me()) { S.nextRef = false; openSheet('refintro'); return; }      // después del canal: cómo funcionan las invitaciones
     if (k === 'report' && S.chat) { S.rp = null; openSheet('chat'); return; }
     if (k === 'terms' && S.termsAsk) { S.termsAsk = false; }
     if (k === 'chat' && S.chatFrom === 'msgs') { S.chat = null; S.chatFrom = null; render(); openSheet('msgs'); return; }
@@ -2745,6 +2838,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     } else if (k === 'tg') { title = 'Únete al canal'; body = (S.tgHi ? '<div class="fcard ok"><b>' + esc(S.tgHi) + '</b></div>' : '') + '<div class="tghero">' + I.send + '</div><h3 class="tgh">En Verde tiene su canal en Telegram</h3>' +
       '<p>Únete para estar al día: novedades de la app, avisos importantes y consejos para sacarle más a tus cuentas.</p>' +
       tgLink('btn primary block tgbtn', 'Unirme al canal') + '<button class="btn block" data-act="sheet-close">Ahora no</button>';
+    } else if (k === 'cur') { title = 'Moneda'; body = curSheetBody();
+    } else if (k === 'refintro') { title = 'Invita y gana meses gratis'; body = refIntroBody();
     } else if (k === 'phone') { title = 'Teléfono'; body = phoneBody();
     } else if (k === 'gems') { title = 'Gemas e invitar'; body = gemsBody();
     } else if (k === 'fee') { title = 'Cuota y pagos'; body = feeBody();
@@ -2844,9 +2939,9 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return p.length > 1 ? i + '.' + p[1] : i;
   }
   function lastPrice(type, excludeId) {
-    var rows = book().rows, any = null;
+    var rows = book().rows, any = null, ck = S.entry ? S.entry.cur : S.cur;
     for (var i = rows.length - 1; i >= 0; i--) {
-      var r = rows[i]; if (r.id === excludeId) continue;
+      var r = rows[i]; if (r.id === excludeId || r.cur !== ck) continue;
       if (r.type === type) return r.price;
       if (any == null) any = r.price;
     }
@@ -2854,13 +2949,14 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function lastAny(excludeId) {
     var rows = book().rows;
-    for (var i = rows.length - 1; i >= 0; i--) if (rows[i].id !== excludeId) return rows[i].price;
+    var ck = S.entry ? S.entry.cur : S.cur;
+    for (var i = rows.length - 1; i >= 0; i--) if (rows[i].id !== excludeId && rows[i].cur === ck) return rows[i].price;
     return null;
   }
   function entryCalc() {
     var e = S.entry, q = EV.num(e.qty), p = EV.num(e.price), c = EV.num(e.cost);
     var t = e.t != null ? e.t : NOW(), okq = q > 0, okp = p > 0;
-    var pv = EV.preview(ops(), { id: e.id, type: e.type, usd: okq ? q : 0, price: okp ? p : 0, t: t, extra: c > 0 ? c : null }, NOW());
+    var pv = EV.preview(ops(), { id: e.id, type: e.type, usd: okq ? q : 0, price: okp ? p : 0, t: t, extra: c > 0 ? c : null, cur: e.cur }, NOW());
     return { q: q, p: p, c: c, t: t, okq: okq, okp: okp, valid: okq && okp, pv: pv };
   }
   function fieldInner(f, prefix, suffix) {
@@ -2872,13 +2968,13 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function entryShell() {
     var e = S.entry, buy = e.type === 'buy';
-    var title = e.mode === 'edit' ? (buy ? 'Editar compra' : 'Editar venta') : (buy ? 'Compré dólares' : 'Vendí dólares');
+    var title = e.mode === 'edit' ? (buy ? 'Editar compra' : 'Editar venta') + (e.cur !== 'USD' ? ' · ' + C(e.cur).name : '') : (buy ? 'Compré ' : 'Vendí ') + C(e.cur).many;
     var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'].map(function (k) {
       return '<button class="key" tabindex="-1" data-act="key" data-k="' + k + '" aria-label="' + (k === 'back' ? 'Borrar' : k === '.' ? 'Punto decimal' : k) + '">' + (k === 'back' ? I.back : k === '.' ? '.' : k) + '</button>';
     }).join('');
     return '<div class="entry" data-type="' + e.type + '" role="dialog" aria-modal="true" aria-label="' + title + '">' +
       '<div class="entry-top"><button class="icon-btn" data-act="entry-close" aria-label="Cerrar">' + I.close + '</button><h2>' + title + '</h2><span></span></div>' +
-      '<div class="fields">' + fieldBtn('qty', 'Dólares') + fieldBtn('price', 'Precio por dólar') + '</div>' +
+      '<div class="fields">' + fieldBtn('qty', capW(C(e.cur).many)) + fieldBtn('price', 'Precio por ' + C(e.cur).one) + '</div>' +
       '<div class="entry-body" id="eb"><div class="chips" id="e-chips"></div><div id="e-figs"></div><div id="e-short"></div><div class="when" id="e-when"></div>' +
       (e.mode === 'edit' ? '<p class="edit24">' + editLeft(find(e.id)) + '</p><button class="del" data-act="entry-delete">Eliminar esta operación</button>' : '') + '</div>' +
       '<div class="keypad" id="e-pad">' + keys + '</div>' +
@@ -2887,24 +2983,24 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function chipsHTML(c) {
     var e = S.entry, h = '', last = lastPrice(e.type, e.id);
     if (e.type === 'sell' && c.pv && c.pv.usdBefore > 0.005 && Math.abs((c.okq ? c.q : 0) - c.pv.usdBefore) > 0.0049)
-      h += '<button class="chip" data-act="chip-all">Todos: $' + EV.money(c.pv.usdBefore) + '</button>';
+      h += '<button class="chip" data-act="chip-all">Todos: ' + EV.amt(c.pv.usdBefore, e.cur) + '</button>';
     if (last != null && EV.num(e.price) !== last) h += '<button class="chip" data-act="chip-last">Último precio: ' + EV.money(last) + '</button>';
     return h;
   }
   function figsHTML(c) {
     var e = S.entry, buy = e.type === 'buy', pv = c.pv;
     var l1 = buy ? 'Tienes que dar' : 'Te tienen que dar', l2 = buy ? 'Recibes' : 'Entregas';
-    var v1 = c.valid ? EV.money(pv.total) : '—', v2 = c.okq ? '$' + EV.money(c.q) : '$—';
+    var v1 = c.valid ? EV.money(pv.total) : '—', v2 = c.okq ? EV.amt(c.q, e.cur) : C(e.cur).sym + '—' + C(e.cur).post;
     var h = '<div class="figs' + (c.valid ? '' : ' dim') + '"><div class="l">' + l1 + '</div><div class="big' + fit(v1, 9, 12) + '">' + v1 + '<small> CUP</small></div>' +
       '<div class="sep"></div><div class="l">' + l2 + '</div><div class="mid">' + v2 + '</div></div>';
-    if (!c.valid) return h + '<div class="note">Escribe los dólares y el precio.</div>';
+    if (!c.valid) return h + '<div class="note">Escribe la cantidad y el precio.</div>';
     if (buy) h += '<div class="note">Tu costo promedio quedará en <b>' + EV.money(pv.avgAfter) + ' CUP</b></div>';
     else if (pv.noCost) { /* la tarjeta de abajo explica qué falta */ }
     else {
       var g = pv.profit, cls = g > 0.5 ? 'gain' : g < -0.5 ? 'loss' : '';
       var txt = g > 0.5 ? 'Ganas ' + EV.gain(g) + ' CUP en esta venta' : g < -0.5 ? 'Pierdes ' + EV.gain(-g) + ' CUP en esta venta' : 'Sin ganancia: vendes al costo';
       var cost = pv.usdKnown > 0.005 ? (c.p * pv.usdKnown - g) / pv.usdKnown : pv.avgBefore;
-      h += '<div class="note ' + cls + '">' + txt + '<small>Costo promedio: ' + EV.money(cost) + ' CUP por $' + (pv.partial ? ' · solo cuenta lo que tiene costo' : '') + '</small></div>';
+      h += '<div class="note ' + cls + '">' + txt + '<small>Costo promedio: ' + EV.money(cost) + ' CUP por ' + (e.cur === 'USD' ? '$' : C(e.cur).one) + (pv.partial ? ' · solo cuenta lo que tiene costo' : '') + '</small></div>';
     }
     var ref = e.mode === 'new' ? lastAny(e.id) : null;
     if (ref && Math.abs(c.p - ref) / ref > 0.2) h += '<div class="note warn">Ojo: tu último precio fue ' + EV.money(ref) + '. ¿Seguro que es ' + EV.money(c.p) + '?</div>';
@@ -2912,10 +3008,10 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function shortHTML(c) {
     var e = S.entry, pv = c.pv, has = pv.usdBefore > 0.005;
-    var intro = has ? 'Solo tienes <b>$' + EV.money(pv.usdBefore) + '</b> en tus cuentas. Los otros <b>$' + EV.money(pv.usdShort) + '</b> no están registrados.' : 'No hay dólares registrados en tus cuentas.';
+    var intro = has ? 'Solo tienes <b>' + EV.amt(pv.usdBefore, e.cur) + '</b> en tus cuentas. Los otros <b>' + EV.amt(pv.usdShort, e.cur) + '</b> no están registrados.' : 'No hay ' + C(e.cur).many + ' registrados en tus cuentas.';
     return '<div class="short"><p>' + intro + '</p><button class="field' + (e.active === 'cost' ? ' on' : '') + '" id="f-cost" data-act="focus" data-f="cost">' +
-      '<span class="fl">¿A cuánto compraste esos $' + EV.money(pv.usdShort) + '? (opcional)</span><span class="fv" id="v-cost">' + fieldInner('cost', '', 'CUP') + '</span></button>' +
-      '<p class="hint">Si no lo pones, la ganancia de esos dólares no se cuenta.</p></div>';
+      '<span class="fl">¿A cuánto compraste esos ' + EV.amt(pv.usdShort, e.cur) + '? (opcional)</span><span class="fv" id="v-cost">' + fieldInner('cost', '', 'CUP') + '</span></button>' +
+      '<p class="hint">Si no lo pones, la ganancia de esos ' + C(e.cur).many + ' no se cuenta.</p></div>';
   }
   function drawWhen() {
     var e = S.entry, el = $('#e-when'); if (!el) return;
@@ -2934,7 +3030,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (!needCost && e.active === 'cost') e.active = 'qty';
     ['qty', 'price'].forEach(function (f) {
       $('#f-' + f).className = 'field' + (e.active === f ? ' on' : '');
-      $('#v-' + f).innerHTML = f === 'qty' ? fieldInner('qty', '$', '') : fieldInner('price', '', 'CUP');
+      $('#v-' + f).innerHTML = f === 'qty' ? fieldInner('qty', C(e.cur).sym, C(e.cur).post.trim()) : fieldInner('price', '', 'CUP');
     });
     $('#e-chips').innerHTML = chipsHTML(c);
     $('#e-figs').innerHTML = figsHTML(c);
@@ -2953,8 +3049,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       if (S.mode === 'real' && !EVAcc.canChange(o, NOW())) {
         return ask({ title: 'Ya no se puede cambiar', text: 'Las operaciones se pueden corregir o borrar solo en las 24 horas después de registrarlas. Esta la registraste el ' + fmtDate(o.c || o.u) + ' a las ' + EV.fmtTime(o.c || o.u) + '.', ok: 'Entendido', no: 'Cerrar' });
       }
-      e = { mode: 'edit', id: id, type: o.type, qty: rawStr(o.usd), price: rawStr(o.price), cost: o.extra != null ? rawStr(o.extra) : '', active: 'qty', t: o.t, showTime: false };
-    } else e = { mode: 'new', id: null, type: type, qty: '', price: '', cost: '', active: 'qty', t: null, showTime: false };
+      e = { mode: 'edit', id: id, type: o.type, cur: EV.curOf(o), qty: rawStr(o.usd), price: rawStr(o.price), cost: o.extra != null ? rawStr(o.extra) : '', active: 'qty', t: o.t, showTime: false };
+    } else e = { mode: 'new', id: null, type: type, cur: S.cur || 'USD', qty: '', price: '', cost: '', active: 'qty', t: null, showTime: false };
     S.entry = e;
     clearTimeout(toastTimer); S.toast = null;          // un aviso viejo no debe tapar el botón de confirmar
     $('#entry').innerHTML = entryShell();
@@ -3001,7 +3097,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function confirmEntry(c) {
     var e = S.entry, nowT = NOW(), t = e.t != null ? Math.min(e.t, nowT) : nowT, edit = e.mode === 'edit';
     var extra = e.type === 'sell' && c.pv.usdShort > 0.005 && c.c > 0 ? c.c : null;
-    var p = { type: e.type, usd: c.q, price: c.p, t: t, extra: extra };
+    var p = { type: e.type, usd: c.q, price: c.p, t: t, extra: extra, cur: e.cur };
     if (S.mode === 'real') {
       if (edit && !EVAcc.canChange(find(e.id), nowT)) return toast({ title: 'Pasaron las 24 horas: ya no se puede corregir', tone: 'loss', ms: 4000 });
       var old = edit ? find(e.id) : null;
@@ -3194,12 +3290,12 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
 
   /* Junta lo que el escáner necesita: precios de otras personas (servicio), los propios y las operaciones. */
   function gather() {
-    var now = NOW(), z = S.zone, rows = book().rows;
+    var now = NOW(), z = EVZone.zk(S.zone, S.cur), rows = book().rows.filter(function (r) { return r.cur === (S.cur || 'USD'); });
     var inp = {
       zone: z, now: now, others: null, othersAreExamples: !community.real, own: rows,
       mine: S.mode === 'real' && S.share ? EVZone.outRecords(OB.out, z) : [],
-      examples: BETA && !SC.ownOnly ? EVZone.exampleFeed(z, now, EVZone.anchors(rows, now)) : null,
-      offers: SC.ownOnly || REMOTE ? [] : scanOffers(z, now)
+      examples: BETA && !SC.ownOnly ? EVZone.exampleFeed(z, now, curAnchors(rows, now)) : null,
+      offers: SC.ownOnly || REMOTE ? [] : scanOffers(S.zone, now)
     };
     if (SC.ownOnly) return Promise.resolve(inp);
     var pulls = [withTimeout(community.pull(z, now - 7 * DAY), 3500).then(function (list) { inp.others = list; }, function () {})];
@@ -3208,12 +3304,20 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   /* Las ofertas actuales de la zona (sin las propias): «Compro» dice a cuánto te compran; «Vendo», a cuánto te venden.
      Cada oferta pesa según la confianza de la cuenta (las nuevas pesan poco, las canceladas nada). */
+  /* precios de partida de los ejemplos (beta): de las operaciones propias en esa moneda, o del USD por su valor aproximado */
+  function curAnchors(rows, now) {
+    var k = S.cur || 'USD', f = C(k).f, own = rows.filter(function (r) { return r.cur === k; });
+    var a = EVZone.anchors(own, now);
+    if (k !== 'USD' && !own.length) { var u = EVZone.anchors(realRows().filter(function (r) { return r.cur === 'USD'; }), now); a = { b: snapP(u.b * f), s: snapP(u.s * f) }; }
+    return a;
+  }
+  function snapP(p) { return p >= 200 ? Math.round(p / 5) * 5 : p >= 20 ? Math.round(p) : Math.round(p * 10) / 10; }
   function scanOffers(z, now) {
     loadOfs();
-    var a = me(), list = OFS.offers.filter(function (o) { return EVOff.active(o, now) && o.zone === z && (!a || o.uid !== a.id); });
-    if (BETA) list = list.concat(EVOff.examples(z, now, EVZone.anchors(realRows(), now)));
+    var a = me(), ck = S.cur || 'USD', list = OFS.offers.filter(function (o) { return EVOff.active(o, now) && o.zone === z && EVOff.curOf(o) === ck && (!a || o.uid !== a.id); });
+    if (BETA) list = list.concat(EVOff.examples(z, now, curAnchors(realRows(), now), ck));
     return list.map(function (o) {
-      return { z: o.zone, k: o.k === 'buy' ? 's' : 'b', p: o.price, exp: o.exp, c: o.ex ? o.id : o.uid, w: o.ex ? 1 : EVAcc.trust(REG.list[o.uid], now) };
+      return { z: EVZone.zk(o.zone, ck), k: o.k === 'buy' ? 's' : 'b', p: o.price, exp: o.exp, c: o.ex ? o.id : o.uid, w: o.ex ? 1 : EVAcc.trust(REG.list[o.uid], now) };
     });
   }
   function runScan() {
@@ -3256,7 +3360,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return '<div class="gcard lv-' + lv + (has ? ' wait' : ' done nodata') + '" id="g-' + k + '" data-k="' + k + '"><i class="gscan"></i>' +
       '<span class="gtag ' + tg[0] + '"><i></i>' + tg[1] + '</span><div class="gtt">' + kindTitle(k) + '</div>' +
       '<div class="gdial">' + dial + '<div class="gread"><div class="gnum' + sz + '" id="rv-' + k + '">—</div></div></div>' +
-      '<div class="gu">CUP por dólar</div>' +
+      '<div class="gu">CUP por ' + C().one + '</div>' +
       '<div class="glev ' + lv + '"><i></i>' + lvText + '</div><div class="gmeta" id="rn-' + k + '">' + (has ? '&nbsp;' : metaText(x, 0)) + '</div></div>';
   }
   function scanNote(ex) {
@@ -3267,18 +3371,18 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function sentenceHTML(res) {
     var b = book(), hide = S.hide, sell = res.s.price, buy = res.b.price, o;
     if (b.usd > 0.005) {
-      o = 'Tus dólares te costaron <b>' + (hide ? DOTS : EV.money(b.avg)) + '</b> en promedio';
+      o = 'Tus ' + C().many + ' te costaron <b>' + (hide ? DOTS : EV.money(b.avg)) + '</b> en promedio';
       if (sell == null) return o + '. Todavía no hay un precio de venta para tu zona.';
       var d = sell - b.avg, ad = Math.abs(d);
       o += ', si vendes a <b>' + px(sell) + '</b> ';
       if (ad < 0.05) return o + 'no ganas ni pierdes.';
-      return o + (d > 0 ? 'ganas <b class="up">' : 'pierdes <b class="dn">') + (hide ? '•••' : px(ad)) + ' CUP</b> por dólar.';
+      return o + (d > 0 ? 'ganas <b class="up">' : 'pierdes <b class="dn">') + (hide ? '•••' : px(ad)) + ' CUP</b> por ' + C().one + '.';
     }
-    o = 'Todavía no tienes dólares registrados.';
+    o = 'Todavía no tienes ' + C().many + ' registrados.';
     if (sell != null && buy != null) {
       var sp = sell - buy;
       o += ' Con los precios de tu zona, comprar a <b>' + px(buy) + '</b> y vender a <b>' + px(sell) + '</b> ' +
-        (sp > 0.05 ? 'deja <b class="up">' + px(sp) + ' CUP</b> por dólar.' : 'no deja ganancia.');
+        (sp > 0.05 ? 'deja <b class="up">' + px(sp) + ' CUP</b> por ' + C().one + '.' : 'no deja ganancia.');
     }
     return o;
   }
@@ -3291,7 +3395,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return 'Todavía no hay precios para mostrar. Registra una compra o una venta y el escáner empieza con tus precios.' + tail;
   }
   function srSummary(res) {
-    function part(x, t) { return x.price == null ? t + ': sin datos todavía.' : t + ' ' + px(x.price) + ' CUP por dólar' + (x.level ? ', nivel ' + LV[x.level].toLowerCase() : '') + '.'; }
+    function part(x, t) { return x.price == null ? t + ': sin datos todavía.' : t + ' ' + px(x.price) + ' CUP por ' + C().one + (x.level ? ', nivel ' + LV[x.level].toLowerCase() : '') + '.'; }
     var ex = res.s.source === 'example' || res.b.source === 'example';
     return part(res.b, 'Te venden a') + ' ' + part(res.s, 'Te compran a') + (ex ? ' Son datos de ejemplo de la beta.' : '');
   }
@@ -3504,7 +3608,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         '<li>' + I.check + EVAcc.TRIAL_DAYS + ' días gratis. Después, el 1 % de lo que ganes en el mes. Si un mes no ganas, no pagas.</li></ul></div>' +
         (storageOk ? '' : '<div class="abeta">Este navegador no deja guardar en el teléfono: al cerrarlo se pierden tu perfil y tus operaciones. Haz respaldos seguido.</div>') +
         '<div class="aw-acts"><button class="go" data-act="auth" data-step="register">Crear mi cuenta</button>' +
-        '<button class="btn block" data-act="auth" data-step="login">Ya tengo cuenta</button>' + tgLink('tgline', 'Síguenos en Telegram para estar al día') + '</div>';
+        '<button class="btn block" data-act="auth" data-step="login">Ya tengo cuenta</button>' + tgLink('tgline', 'Síguenos en Telegram para estar al día') +
+        (apkOffer() ? '<a class="apkline" href="' + APK_URL + '" rel="noopener">' + I.down + '<span><b>Descargar la app para Android</b><small>Archivo APK · se puede pasar por WhatsApp o Zapya</small></span></a>' : '') + '</div>';
     } else if (st === 'register') {
       h += '<div class="ah"><button class="icon-btn" data-act="auth" data-step="welcome" aria-label="Atrás">' + I.close + '</button><h2>Crear mi cuenta</h2></div>';
       if (A.via && bySlug(A.via)) h += '<div class="ainv">' + I.gem + 'Te invitó <b>' + esc(bySlug(A.via).nick) + '</b>: al verificar tu correo ganas 1 gema.</div>';
@@ -3612,7 +3717,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (inviter) EVAcc.addGems(a, 1, 'Te registraste con la invitación de ' + inviter.nick, now);
     REG.list[id] = a; REG.cur = id; saveReg();
     enterAccount();
-    if (!a.exempt) { S.tgHi = '¡Listo, ' + a.nick + '! Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (inviter ? ' Ganaste 1 gema.' : ''); return openSheet('tg'); }
+    if (!a.exempt) { S.tgHi = '¡Listo, ' + a.nick + '! Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (inviter ? ' Ganaste 1 gema.' : ''); S.nextRef = true; return openSheet('tg'); }
     toast({ title: '¡Listo, ' + a.nick + '!', sub: a.exempt ? 'Entraste como administrador.' : 'Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (inviter ? ' Ganaste 1 gema.' : ''), ms: 5000 });
   }
   function loginAs(a, msg) {
@@ -3765,6 +3870,28 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     a.phone = p; saveReg(); S.pf = null; closeSheet(); render(); toast({ title: 'Teléfono guardado', ms: 2500 });
   }
   function shareText() { var a = me(); return 'Lleva las cuentas de tus dólares con En Verde. Regístrate con mi enlace y ganas 1 gema: https://' + EVAcc.refLink(a); }
+  function curSheetBody() {
+    var by = book().by || {};
+    return '<p class="fine2" style="margin-top:0">Cada moneda lleva sus propias cuentas: lo que tienes, tu costo promedio y tu ganancia. El escáner y las ofertas también van por moneda. Las ganancias de todas se suman en CUP.</p><div class="curlist">' +
+      EV.CURS.map(function (c) {
+        var st = by[c.k], on = S.cur === c.k;
+        var sub = st && st.usd > 0 ? (S.hide ? 'En mano •••' : 'En mano ' + EV.amt(st.usd, c.k) + ' · costo prom. ' + EV.money(st.avg) + ' CUP') : 'Sin ' + c.many + ' en mano';
+        return '<button class="curitem' + (on ? ' on' : '') + '" data-act="cur-pick" data-c="' + c.k + '" aria-pressed="' + on + '"><span class="ci-n">' + c.name + '</span><span class="ci-t"><b>' + capW(c.many) + '</b><span>' + sub + '</span></span>' + (on ? '<span class="ci-ok">' + I.check + '</span>' : '') + '</button>';
+      }).join('') + '</div>';
+  }
+  function refIntroBody() {
+    var a = me(), link = EVAcc.refLink(a);
+    return '<div class="refhero">💎</div><h3 class="tgh">Cada amigo que invitas te acerca a un mes gratis</h3>' +
+      '<ol class="steps">' +
+      '<li><b>Comparte tu enlace</b> con quien compre y venda dólares.<span class="mono reflink">' + esc(link) + '</span></li>' +
+      '<li><b>Tu amigo se registra</b> con tu enlace y gana <b>1 gema</b> de bienvenida.</li>' +
+      '<li><b>Cuando haga su primera compra y su primera venta</b> en la app, tú ganas <b>1 gema</b>.</li>' +
+      '<li><b>Con 3 gemas</b> pagas un mes completo de la cuota. Las gemas no caducan.</li></ol>' +
+      '<button class="btn primary block" data-act="ref-share">Compartir por WhatsApp</button>' +
+      '<button class="btn block" data-act="ref-copy">Copiar mi enlace</button>' +
+      '<button class="btn ghost block" data-act="sheet-close">Ahora no</button>' +
+      '<p class="fine2">Tu enlace y tus gemas siempre están en Ajustes → Gemas e invitar.</p>';
+  }
   function gemsBody() {
     var a = me(), s = EVAcc.slug(a.nick), inv = accounts().filter(function (x) { return x.ref === s; }), act = inv.filter(function (x) { return x.refDone; }).length;
     var h = '<div class="gemhero">' + I.gem + '<b id="gem-n">' + (a.gems || 0) + '</b><span>' + ((a.gems || 0) === 1 ? 'gema' : 'gemas') + '</span></div>' +
@@ -3895,25 +4022,27 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return isFinite(v) && v >= 0 ? v : NaN;
   }
   function calcBody() {
-    var C = S.calc || (S.calc = { m: 'sell', q: '', p: '', c: '' }), b = EV.replay(S.mode === 'demo' ? S.demo : S.real), sell = C.m === 'sell';
+    var C = S.calc || (S.calc = { m: 'sell', q: '', p: '', c: '' }), b = EV.replay(S.mode === 'demo' ? S.demo : S.real, S.cur || 'USD'), sell = C.m === 'sell';
     function inp(id, key, label, ph) { return '<label class="af" for="' + id + '"><span class="afl">' + label + '</span><input id="' + id + '" data-cf="' + key + '" value="' + esc(C[key] || '') + '" type="text" inputmode="decimal" autocomplete="off" placeholder="' + ph + '"></label>'; }
     var h = '<div class="seg pm two"><button data-act="calc-m" data-m="sell"' + (sell ? ' aria-selected="true"' : '') + '>Si vendo</button><button data-act="calc-m" data-m="buy"' + (!sell ? ' aria-selected="true"' : '') + '>Si compro</button></div><div class="aform">';
-    h += inp('c-q', 'q', 'Dólares', '100') + inp('c-p', 'p', sell ? 'Precio de venta (CUP por dólar)' : 'Precio de compra (CUP por dólar)', '1,000');
-    if (sell) h += inp('c-c', 'c', 'Lo que te costó cada dólar', b.usd > 0 && !S.hide ? EV.fmt(Math.round(b.avg * 100) / 100, 2) : '980') +
+    var cu = EV.cur(S.cur);
+    h = '<p class="fine2" style="margin:0 0 8px">Moneda: <b>' + cu.name + '</b> · se cambia en la portada</p>' + h;
+    h += inp('c-q', 'q', capW(cu.many), '100') + inp('c-p', 'p', sell ? 'Precio de venta (CUP por ' + cu.one + ')' : 'Precio de compra (CUP por ' + cu.one + ')', EV.money(curAnchors(realRows(), NOW()).s));
+    if (sell) h += inp('c-c', 'c', 'Lo que te costó cada ' + cu.one, b.usd > 0 && !S.hide ? EV.fmt(Math.round(b.avg * 100) / 100, 2) : '980') +
       (b.usd > 0 ? '<button class="alink in" data-act="calc-avg">Usar mi costo promedio' + (S.hide ? '' : ' (' + EV.money(b.avg) + ')') + '</button>' : '');
     h += '</div><div class="calcout" id="calc-out" aria-live="polite">' + calcOut() + '</div><p class="fine2">La calculadora no registra nada. Es gratis siempre.</p>';
     return h;
   }
   function calcOut() {
-    var C = S.calc, b = EV.replay(S.mode === 'demo' ? S.demo : S.real), q = calcNum(C.q), p = calcNum(C.p);
-    if (!(q > 0) || !(p > 0)) return '<span class="co-h">Escribe dólares y precio.</span>';
+    var C = S.calc, b = EV.replay(S.mode === 'demo' ? S.demo : S.real, S.cur || 'USD'), q = calcNum(C.q), p = calcNum(C.p);
+    if (!(q > 0) || !(p > 0)) return '<span class="co-h">Escribe la cantidad y el precio.</span>';
     if (C.m === 'sell') {
       var c = C.c !== '' && C.c != null ? calcNum(C.c) : (b.usd > 0 ? b.avg : NaN);
       var out = '<div class="co-r"><span>Recibes</span><b>' + EV.money(q * p) + ' CUP</b></div>';
-      if (!(c >= 0)) return out + '<span class="co-h">Escribe lo que te costó cada dólar para ver la ganancia.</span>';
+      if (!(c >= 0)) return out + '<span class="co-h">Escribe lo que te costó cada ' + EV.cur(S.cur).one + ' para ver la ganancia.</span>';
       var g = (p - c) * q;
       return out + '<div class="co-r big ' + (g > 0.005 ? 'up' : g < -0.005 ? 'dn' : '') + '"><span>' + (g < -0.005 ? 'Pierdes' : 'Ganas') + '</span><b>' + EV.money(Math.abs(g)) + ' CUP</b></div>' +
-        '<div class="co-r"><span>Por dólar</span><b>' + EV.signed(Math.round((p - c) * 100) / 100) + ' CUP</b></div>';
+        '<div class="co-r"><span>Por ' + EV.cur(S.cur).one + '</span><b>' + EV.signed(Math.round((p - c) * 100) / 100) + ' CUP</b></div>';
     }
     var nu = b.usd + q, na = (b.cost + q * p) / nu;
     return '<div class="co-r big"><span>Pagas</span><b>' + EV.money(q * p) + ' CUP</b></div>' +
@@ -4028,7 +4157,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   var OFS = { offers: [], chats: {}, read: {} };
   function okOffer(o) {
     return o && typeof o.id === 'string' && typeof o.uid === 'string' && typeof o.nick === 'string' && (o.k === 'buy' || o.k === 'sell') &&
-      typeof o.usd === 'number' && o.usd > 0 && typeof o.price === 'number' && o.price > 0 && typeof o.zone === 'string' && typeof o.exp === 'number' && typeof o.t === 'number';
+      (o.usd == null || (typeof o.usd === 'number' && o.usd > 0)) && typeof o.price === 'number' && o.price > 0 && typeof o.zone === 'string' && typeof o.exp === 'number' && typeof o.t === 'number';
   }
   function loadOfs() {
     if (REMOTE) { if (!OFR.t && !OFS.offers.length) { var cache = lsGet(KOS); if (cache && Array.isArray(cache.offers)) OFS = cache; } rRefreshOfs(false); return; }
@@ -4052,19 +4181,20 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return EVOff.unread({ offers: OFS.offers, chats: ch, read: OFS.read }, a.id);
   }
   function ofLine(o, who) {
-    return (o.k === 'sell' ? (who ? 'Vende' : 'Vendo') : (who ? 'Compra' : 'Compro')) + ' $' + EV.money(o.usd) + ' a ' + EV.money(o.price) + ' CUP';
+    var k = EVOff.curOf(o);
+    return (o.k === 'sell' ? (who ? 'Vende' : 'Vendo') : (who ? 'Compra' : 'Compro')) + ' ' + (o.usd > 0 ? EV.amt(o.usd, k) : C(k).many) + ' a ' + EV.money(o.price) + ' CUP';
   }
   function hoursLeft(o) { var h = Math.max(0, Math.ceil((o.exp - NOW()) / 3600000)); return h <= 1 ? 'queda menos de 1 h' : 'quedan ' + h + ' h'; }
   function boardList() {
-    var a = me(), O = S.of, ex = BETA ? EVOff.examples(S.zone, NOW(), EVZone.anchors(realRows(), NOW())) : [];
-    return EVOff.board(OFS.offers.concat(ex), { now: NOW(), zone: S.zone, side: O.side, where: O.where }).filter(function (o) { return (!a || o.uid !== a.id) && !isBlocked(o.uid); });
+    var a = me(), O = S.of, ex = BETA ? EVOff.examples(S.zone, NOW(), curAnchors(realRows(), NOW()), S.cur || 'USD') : [];
+    return EVOff.board(OFS.offers.concat(ex), { now: NOW(), zone: S.zone, side: O.side, where: O.where, cur: S.cur || 'USD' }).filter(function (o) { return (!a || o.uid !== a.id) && !isBlocked(o.uid); });
   }
   function offerCard(o, best) {
     var a = me(), h = '<div class="ofc' + (o.ex ? ' ex' : '') + '" data-of="' + esc(o.id) + '">';
     h += '<div class="ofc-top"><span class="ofk ' + o.k + '">' + (o.k === 'sell' ? 'VENDE' : 'COMPRA') + '</span>' + (best ? '<span class="ofbest">Mejor precio</span>' : '') +
       (o.ex ? '<span class="ofex">EJEMPLO</span>' : '') + '</div>';
-    h += '<div class="ofc-p"><b>' + EV.money(o.price) + '</b><span>CUP por dólar</span></div>';
-    h += '<div class="ofc-m"><b>$' + EV.money(o.usd) + '</b> · ' + esc(o.nick) + ' · ' + esc(EVPlaces.get(o.zone) ? EVPlaces.get(o.zone).name : '') + ' · ' + hoursLeft(o) + '</div>';
+    h += '<div class="ofc-p"><b>' + EV.money(o.price) + '</b><span>CUP por ' + C(EVOff.curOf(o)).one + '</span></div>';
+    h += '<div class="ofc-m"><b>' + (o.usd > 0 ? EV.amt(o.usd, EVOff.curOf(o)) : 'Cualquier cantidad') + '</b> · ' + esc(o.nick) + ' · ' + esc(EVPlaces.get(o.zone) ? EVPlaces.get(o.zone).name : '') + ' · ' + hoursLeft(o) + '</div>';
     if (o.ex) h += '<div class="ofc-a"><span class="ofno">Es un ejemplo de la beta: no se puede contactar.</span></div>';
     else if (o.contact === 'phone' && EVOff.waNumber(o.phone)) {
       var wa = EVOff.waNumber(o.phone);
@@ -4089,7 +4219,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       '<p class="fine2" style="margin-top:12px">Los mensajes son de las ofertas de la pestaña <b>Ofertas</b>. Se guardan 7 días después del último mensaje.</p>';
   }
   function viewOffers() {
-    var a = me(), O = S.of, z = EVPlaces.get(S.zone), h = '<div class="screen" id="screen"><h1 class="ttl">Ofertas cerca de ti</h1>';
+    var a = me(), O = S.of, z = EVPlaces.get(S.zone), h = '<div class="screen" id="screen"><h1 class="ttl">Ofertas cerca de ti</h1>' + curBar();
     if (!z) return h + '<div class="empty"><h3>Elige tu municipio</h3><p>Las ofertas se muestran por municipio.</p><button class="btn primary" data-act="zone-open">Elegir municipio</button></div></div>';
     h += '<div class="seg two of-side" role="tablist"><button data-act="of-side" data-s="sell" aria-pressed="' + (O.side === 'sell') + '">Quiero comprar</button>' +
       '<button data-act="of-side" data-s="buy" aria-pressed="' + (O.side === 'buy') + '">Quiero vender</button></div>';
@@ -4106,7 +4236,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     }
     if (th.length) h += '<div class="sec-o">Mensajes</div>' + threadsHTML(th);
     var list = boardList();
-    h += '<div class="sec-o">' + (O.side === 'sell' ? 'Venden dólares · más barato primero' : 'Compran dólares · mejor pago primero') + '</div>';
+    h += '<div class="sec-o">' + (O.side === 'sell' ? 'Venden ' + C().many + ' · más barato primero' : 'Compran ' + C().many + ' · mejor pago primero') + '</div>';
     h += list.length ? '<div class="ofs">' + list.map(function (o, i) { return offerCard(o, i === 0 && list.length > 1); }).join('') + '</div>'
       : '<div class="empty"><p>Todavía no hay ofertas aquí. ' + (O.where === 'mun' ? 'Mira en toda la provincia o publica la tuya.' : 'Publica la tuya.') + '</p></div>';
     h += '<p class="fine">Cada oferta dura 24 horas. El cambio se hace en persona; después cada uno lo registra con COMPRÉ o VENDÍ, como siempre. No mandes dinero por adelantado.' +
@@ -4114,11 +4244,14 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return h + '</div>';
   }
   function ofNewBody() {
-    var a = me(), N = S.ofn, hasPh = !!(a && a.phone);
-    var h = '<div class="seg pm two"><button data-act="ofn-k" data-k="sell"' + (N.k === 'sell' ? ' aria-selected="true"' : '') + '>Vendo dólares</button>' +
-      '<button data-act="ofn-k" data-k="buy"' + (N.k === 'buy' ? ' aria-selected="true"' : '') + '>Compro dólares</button></div><div class="aform">' +
-      '<label class="af" for="of-usd"><span class="afl">Dólares</span><input id="of-usd" data-ofn="usd" value="' + esc(N.usd) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="100"></label>' +
-      '<label class="af" for="of-price"><span class="afl">Precio (CUP por dólar)</span><input id="of-price" data-ofn="price" value="' + esc(N.price) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="' + (N.k === 'sell' ? '1,020' : '990') + '"></label></div>';
+    var a = me(), N = S.ofn, hasPh = !!(a && a.phone), nc = N.cur || (N.cur = S.cur || 'USD'), cc = C(nc);
+    var ph = curAnchors(realRows(), NOW());
+    var h = '<p class="afl">Moneda</p><div class="curbar in">' + EV.CURS.map(function (c) {
+        return '<button class="curc' + (nc === c.k ? ' on' : '') + '" data-act="ofn-cur" data-c="' + c.k + '" aria-pressed="' + (nc === c.k) + '">' + c.name + '</button>'; }).join('') + '</div>' +
+      '<div class="seg pm two"><button data-act="ofn-k" data-k="sell"' + (N.k === 'sell' ? ' aria-selected="true"' : '') + '>Vendo ' + cc.many + '</button>' +
+      '<button data-act="ofn-k" data-k="buy"' + (N.k === 'buy' ? ' aria-selected="true"' : '') + '>Compro ' + cc.many + '</button></div><div class="aform">' +
+      '<label class="af" for="of-price"><span class="afl">Precio (CUP por ' + cc.one + ')</span><input id="of-price" data-ofn="price" value="' + esc(N.price) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="' + EV.money(N.k === 'sell' ? ph.s : ph.b) + '"></label>' +
+      '<label class="af" for="of-usd"><span class="afl">Cantidad <i>(opcional)</i></span><input id="of-usd" data-ofn="usd" value="' + esc(N.usd) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="Cualquier cantidad"></label></div>';
     h += '<div class="ofprev" id="of-prev">' + ofPreview() + '</div>';
     h += '<p class="afl">Cómo te contactan</p><div class="radios">' +
       '<button class="radio" role="radio" data-act="ofn-c" data-c="phone" aria-checked="' + (N.contact === 'phone') + '"' + (hasPh ? '' : ' disabled') + '><i></i><span><b>Mostrar mi número +53</b><span>' +
@@ -4126,36 +4259,38 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       '<button class="radio" role="radio" data-act="ofn-c" data-c="chat" aria-checked="' + (N.contact === 'chat') + '"><i></i><span><b>Solo mensajes por la app</b><span>Tu número no se muestra.</span></span></button></div>';
     if (!hasPh) h += '<button class="alink in" data-act="sheet-open" data-sheet="phone">Agregar mi teléfono</button>';
     if (N.err) h += '<div class="aerr" role="alert">' + esc(N.err) + '</div>';
-    var prev = a ? EVOff.mineOf(OFS.offers, a.id, N.k, NOW()) : null;
-    if (prev) h += '<div class="ofprevx" role="alert"><b>Ya tienes una oferta de ' + (N.k === 'sell' ? 'venta' : 'compra') + ':</b> ' + ofLine(prev) + '. Solo puedes tener una de compra y una de venta. Bórrala para publicar otra.' +
+    var prev = a ? EVOff.mineOf(OFS.offers, a.id, N.k, NOW(), nc) : null;
+    if (prev) h += '<div class="ofprevx" role="alert"><b>Ya tienes una oferta de ' + (N.k === 'sell' ? 'venta' : 'compra') + (nc !== 'USD' ? ' en ' + cc.name : '') + ':</b> ' + ofLine(prev) + '. Solo puedes tener una de compra y una de venta en cada moneda. Bórrala para publicar otra.' +
       '<button class="btn danger block" data-act="of-del" data-of="' + esc(prev.id) + '" data-from="sheet">Borrar la anterior</button></div>';
     else h += '<button class="btn primary block" data-act="ofn-go">Publicar por 24 horas</button>' +
       '<p class="fine2">Se ve tu apodo, tu municipio y la oferta. Tu correo no se muestra nunca. La oferta se borra sola a las 24 horas.</p>';
     return h;
   }
   function ofPreview() {
-    var N = S.ofn, u = calcNum(N.usd), p = calcNum(N.price), z = EVPlaces.get(S.zone);
-    if (!(u > 0) || !(p > 0)) return '<span class="co-h">Así se verá: «' + (N.k === 'sell' ? 'Vendo' : 'Compro') + ' $100 a ' + (N.k === 'sell' ? '1,020' : '990') + ' CUP»</span>';
-    return '<b>' + ofLine({ k: N.k, usd: u, price: p }) + '</b><span> · ' + esc(z ? z.name : '') + '</span>';
+    var N = S.ofn, u = calcNum(N.usd), p = calcNum(N.price), z = EVPlaces.get(S.zone), nc = N.cur || S.cur || 'USD', ph = curAnchors(realRows(), NOW());
+    if (!(p > 0)) return '<span class="co-h">Así se verá: «' + ofLine({ k: N.k, usd: u > 0 ? u : null, price: N.k === 'sell' ? ph.s : ph.b, cur: nc }) + '»</span>';
+    return '<b>' + ofLine({ k: N.k, usd: u > 0 ? u : null, price: p, cur: nc }) + '</b><span> · ' + esc(z ? z.name : '') + '</span>';
   }
   function ofNewGo() {
     var a = me(), N = S.ofn;
     if (blocked()) { N.err = 'Paga la cuota para publicar. Ver ofertas sigue gratis.'; return drawSheet(); }
     loadOfs();
-    if (EVOff.mineOf(OFS.offers, a.id, N.k, NOW())) { N.err = ''; return drawSheet(); }      // ya tiene una de ese tipo: la hoja lo dice y deja quitarla
-    var d = { uid: a.id, nick: a.nick, zone: S.zone, k: N.k, usd: calcNum(N.usd), price: calcNum(N.price), contact: N.contact, phone: a.phone || null };
+    var nc = N.cur || S.cur || 'USD';
+    if (EVOff.mineOf(OFS.offers, a.id, N.k, NOW(), nc)) { N.err = ''; return drawSheet(); }      // ya tiene una de ese tipo en esa moneda: la hoja lo dice y deja quitarla
+    var uq = String(N.usd || '').trim() ? calcNum(N.usd) : null;
+    var d = { uid: a.id, nick: a.nick, zone: S.zone, k: N.k, cur: nc, usd: uq, price: calcNum(N.price), contact: N.contact, phone: a.phone || null };
     var e = EVOff.check(d); if (e) { N.err = e; return drawSheet(); }
     loadOfs();
     if (REMOTE) {
       N.err = ''; N.busy = true;
       return rOfferNew(d).then(function () { return rLoadOfs(true); }).then(function () {
-        S.ofn = null; S.of.side = d.k; closeSheet(); S.tab = 'offers'; render();
+        S.ofn = null; S.of.side = d.k; S.cur = d.cur; savePrefs(); closeSheet(); S.tab = 'offers'; render();
         toast({ title: 'Oferta publicada', sub: ofLine(d) + ' · 24 horas', ms: 3500 });
       }, function (e) { N.busy = false; N.err = sbMsg(e); drawSheet(); });
     }
     var o = EVOff.make(d, NOW(), 'of' + EVAcc.randHex(rand, 12));
     OFS.offers.push(o); saveOfs();
-    S.ofn = null; S.of.side = o.k; closeSheet(); S.tab = 'offers'; render();
+    S.ofn = null; S.of.side = o.k; S.cur = o.cur || 'USD'; savePrefs(); closeSheet(); S.tab = 'offers'; render();
     toast({ title: 'Oferta publicada', sub: ofLine(o) + ' · 24 horas', ms: 3500 });
   }
   function ofDel(el) {
@@ -4438,6 +4573,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return '<p>En Verde se puede poner en la pantalla de inicio como una app más: abre de una vez, a pantalla completa y funciona aunque no tengas internet.</p>' +
       (ios ? '<ol class="rules"><li>Ábrela en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li><li>Toca <b>Añadir a pantalla de inicio</b> y luego <b>Añadir</b>.</li></ol>'
            : '<ol class="rules"><li>Ábrela en <b>Chrome</b>.</li><li>Toca el menú <b>⋮</b> arriba a la derecha.</li><li>Toca <b>Instalar app</b> o <b>Añadir a pantalla de inicio</b>.</li></ol>') +
+      (!ios ? '<p>O descarga la <b>app para Android</b> (APK):</p><a class="btn primary block" href="' + APK_URL + '" rel="noopener">Descargar la app para Android</a>' : '') +
       '<p class="fine2">Tus datos no cambian: es la misma cuenta.</p>';
   }
   function chatSend() {
@@ -4463,6 +4599,9 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
      el chat y los precios de zona van al servidor. El teléfono guarda una copia: sin internet la app sigue funcionando y
      sincroniza cuando vuelve. Las reglas (24 h, cuota, 48 h, una oferta por tipo) las hace cumplir el servidor. */
   function iso(ms) { return new Date(ms).toISOString(); }
+  var APK_URL = 'https://github.com/NovaCenterApp/en-verde/releases/latest/download/EnVerde.apk';
+  function android() { return /Android/i.test(navigator.userAgent || ''); }
+  function apkOffer() { return REMOTE && !PUSH.native() && !standalone(); }
   function standalone() { try { return !!((window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
   function ms(s) { return s ? Date.parse(s) : 0; }
   function sbMsg(e) { return e && e.offline ? 'Sin conexión. Inténtalo cuando tengas internet.' : (e && e.message) || 'No se pudo. Inténtalo de nuevo.'; }
@@ -4506,9 +4645,11 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
 
   /* ---------- operaciones: copia local + sincronización ---------- */
   var SYNC = { busy: false, timer: 0, lastPull: 0, err: '' };
-  function opToRow(o) { return { id: o.id, type: o.type, usd: o.usd, price: o.price, t: iso(o.t), extra: o.extra == null ? null : o.extra, deleted: !!o.del }; }
+  function opToRow(o) { var r = { id: o.id, type: o.type, usd: o.usd, price: o.price, t: iso(o.t), extra: o.extra == null ? null : o.extra, deleted: !!o.del }; if (!o.del) r.cur = o.cur || 'USD'; return r; }
   function rowToOp(r) {
-    return { id: r.id, type: r.type, usd: +r.usd, price: +r.price, t: ms(r.t), u: ms(r.updated_at), c: ms(r.created_at), extra: r.extra == null ? null : +r.extra, del: r.deleted ? 1 : 0, s: 1 };
+    var o = { id: r.id, type: r.type, usd: +r.usd, price: +r.price, t: ms(r.t), u: ms(r.updated_at), c: ms(r.created_at), extra: r.extra == null ? null : +r.extra, del: r.deleted ? 1 : 0, s: 1 };
+    if (r.cur && r.cur !== 'USD' && EV.cur(r.cur).k === r.cur) o.cur = r.cur;
+    return o;
   }
   /* Lo que cambió en el teléfono y todavía no llegó al servidor queda marcado con p: 1 */
   function markPending(next, prev) {
@@ -4516,7 +4657,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     next.forEach(function (o) { var p = old[o.id]; if (!p || p.u !== o.u || p.del !== o.del) { o.p = 1; if (p && p.s) o.s = 1; } });
   }
   function remotePullOps() {
-    return SB.rest('GET', 'ops?select=id,type,usd,price,t,extra,created_at,updated_at,deleted&order=t').then(function (rows) {
+    return SB.rest('GET', 'ops?select=id,type,usd,price,t,extra,cur,created_at,updated_at,deleted&order=t').then(function (rows) {
       var srv = {}, out = [];
       (rows || []).forEach(function (r) { srv[r.id] = rowToOp(r); });
       S.real.forEach(function (o) { if (o.p && !(srv[o.id] && srv[o.id].u > o.u)) { srv[o.id] = o; } });   // lo que falta subir se queda
@@ -4603,7 +4744,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       enterAccount();
       remoteSync();
       PUSH.resync();
-      if (isNew && !a.exempt) { S.tgHi = '¡Listo, ' + a.nick + '! Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (a.ref ? ' Ganaste 1 gema.' : ''); return openSheet('tg'); }
+      if (isNew && !a.exempt) { S.tgHi = '¡Listo, ' + a.nick + '! Tienes ' + EVAcc.TRIAL_DAYS + ' días gratis.' + (a.ref ? ' Ganaste 1 gema.' : ''); S.nextRef = true; return openSheet('tg'); }
       if (!a.termsAt) { S.termsAsk = true; openSheet('terms'); }
       toast({ title: (isNew ? '¡Listo, ' : 'Hola, ') + a.nick + (isNew ? '!' : ''), sub: msg || (a.exempt ? 'Entraste como administrador.' : ''), ms: 3500 });
     }, function (e) { S.auth.busy = false; S.auth.err = { top: esc(sbMsg(e)) }; render(); });
@@ -4758,7 +4899,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   var KOS = 'enverde.offers.srv.v1', OFR = { t: 0, busy: false, poll: 0 };
   function lineOf(c, who) { return c.offer && c.offer.k ? ofLine(c.offer, who) : (c.line || ''); }
   function rOfferFromRow(o) {
-    return { id: o.id, uid: o.user_id, nick: o.nick, zone: o.zone, k: o.kind, usd: +o.usd, price: +o.price, t: ms(o.created_at), exp: ms(o.expires_at),
+    return { id: o.id, uid: o.user_id, nick: o.nick, zone: o.zone, k: o.kind, usd: o.usd == null ? null : +o.usd, cur: o.cur || 'USD', price: +o.price, t: ms(o.created_at), exp: ms(o.expires_at),
       contact: o.contact, phone: o.phone, del: !!o.deleted };
   }
   /* Trae ofertas vigentes, mis conversaciones, sus mensajes y lo que ya leí. Guarda una copia para ver sin internet. */
@@ -4804,7 +4945,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     });
   }
   function rOfferNew(d) {
-    return SB.rest('POST', 'offers', { zone: d.zone, kind: d.k, usd: d.usd, price: d.price, contact: d.contact }, 'return=representation');
+    return SB.rest('POST', 'offers', { zone: d.zone, kind: d.k, usd: d.usd > 0 ? d.usd : null, cur: d.cur || 'USD', price: d.price, contact: d.contact }, 'return=representation');
   }
   function rOfferDel(id) { return SB.rest('PATCH', 'offers?id=eq.' + id, { deleted: true }); }
   function rChatOpen(offerId) { return SB.rpc('open_chat', { p_offer: offerId }); }
@@ -4966,7 +5107,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'pay-m': function (el) { S.pay.m = el.getAttribute('data-m'); S.pay.err = ''; drawSheet(); },
     'pay-tm': payTm, 'pay-cash': payCash, 'pay-gems': payGems,
     'calc-m': function (el) { S.calc.m = el.getAttribute('data-m'); drawSheet(); },
-    'calc-avg': function () { var b = EV.replay(S.mode === 'demo' ? S.demo : S.real); S.calc.c = String(Math.round(b.avg * 100) / 100); drawSheet(); },
+    'calc-avg': function () { var b = EV.replay(S.mode === 'demo' ? S.demo : S.real, S.cur || 'USD'); S.calc.c = String(Math.round(b.avg * 100) / 100); drawSheet(); },
     'ad-reload': function () { S.adm.loadErr = ''; S.adm.list = null; drawSheet(); },
     'terms-tick': function () { var A = S.auth; A.f.terms = !A.f.terms; if (A.f.terms) delete A.err.terms; render(); },
     'terms-ok': termsAccept,
@@ -4977,6 +5118,9 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'ad-rep-done': function (el) { repDone(el.getAttribute('data-id')); },
     'ad-rep-cancel': function (el) { if (REMOTE) return rAdminAct('cancel', el); ACT['ad-cancel'](el); },
     'acc-delete': accDelete,
+    'cur-pick': function (el) { S.cur = el.getAttribute('data-c'); savePrefs(); S.sel = null; closeSheet(); render(); toast({ title: 'Ahora ves tus ' + C().many, sub: 'COMPRÉ, VENDÍ, el escáner y las ofertas van en ' + C().name + '.', ms: 3000 }); },
+    'cur': function (el) { S.cur = el.getAttribute('data-c'); savePrefs(); S.sel = null; render(); },
+    'ofn-cur': function (el) { S.ofn.cur = el.getAttribute('data-c'); S.ofn.price = ''; S.ofn.err = ''; drawSheet(); },
     'push-on': function () { PUSH.enable(); },
     'push-off': function () { ask({ title: 'Apagar los avisos', text: 'Dejarás de recibir avisos en este teléfono. Puedes volver a activarlos cuando quieras.', ok: 'Apagar', onOk: function () { PUSH.disable(); } }); },
     'push-later': function () { lsSet('enverde.push.later', NOW()); render(); },
