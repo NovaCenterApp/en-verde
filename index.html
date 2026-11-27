@@ -766,6 +766,11 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 @media (max-width: 370px) { .top .curpick { min-height: 28px; padding: 0 8px; font-size: 12px; } .top .brand { font-size: 17px; } .top .icon-btn { width: 38px; } }
 .chkeep { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); text-align: center; }
 .chkeep .alink { font-size: 12.5px; }
+/* escáner de un solo color (sin barato/normal/caro ni conteo) */
+.gcard { --lv: 96, 255, 196; }
+.gsvg .lv-none { fill: #60FFC4; }
+.gmeta { min-height: 1.35em; }
+.gtag.ref { color: #5BF0A9; }
 
 </style>
 </head>
@@ -1238,6 +1243,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     };
   }
 
+  var REF_MAX = 72 * 3600 * 1000;    // un precio de referencia de más de 3 días ya no se usa
   function kindResult(k, inp) {
     var z = inp.zone, now = inp.now;
     var mineIds = {};
@@ -1257,6 +1263,13 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         var p7 = weekPrices(others.concat(mine.filter(function (r) { return inWin(r.t, now, WIN_7); }).map(function (r) { return { p: r.p, t: r.t, c: 'yo' }; })));
         return build(k, inp.othersAreExamples ? 'example' : 'zone', rb.price, rb.people - rb.offers, histStats(p7), { othersN: rb.opsPeople, offersN: rb.offers, dropped: rb.dropped });
       }
+    }
+    // 1b) Pocos datos en la zona: el precio de referencia del día (si está al día)
+    var rf = inp.ref;
+    if (rf && validPrice(rf[k]) && isNum(rf.t) && now - rf.t < REF_MAX && rf.t <= now + FUTURE) {
+      var wk = weekPrices(others.concat(mine.filter(function (r) { return inWin(r.t, now, WIN_7); }).map(function (r) { return { p: r.p, t: r.t, c: 'yo' }; })));
+      if (wk.length < 3) wk = wk.concat([rf[k] * 0.98, rf[k], rf[k] * 1.02]);
+      return build(k, 'ref', rf[k], 0, histStats(wk), { ageMs: Math.max(0, now - rf.t) });
     }
     // 2) Sin datos de otros (o sin conexión): las últimas operaciones de la propia persona
     var own = (inp.own || []).filter(function (o) {
@@ -3310,6 +3323,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       zone: z, now: now, others: null, othersAreExamples: !community.real, own: rows,
       mine: S.mode === 'real' && S.share ? EVZone.outRecords(OB.out, z) : [],
       examples: BETA && !SC.ownOnly ? EVZone.exampleFeed(z, now, curAnchors(rows, now)) : null,
+      ref: SC.ownOnly ? null : refFor(S.cur || 'USD'),
       offers: SC.ownOnly || REMOTE ? [] : scanOffers(S.zone, now)
     };
     if (SC.ownOnly) return Promise.resolve(inp);
@@ -3320,6 +3334,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   /* Las ofertas actuales de la zona (sin las propias): «Compro» dice a cuánto te compran; «Vendo», a cuánto te venden.
      Cada oferta pesa según la confianza de la cuenta (las nuevas pesan poco, las canceladas nada). */
   /* precios de partida de los ejemplos (beta): de las operaciones propias en esa moneda, o del USD por su valor aproximado */
+  /* precio de referencia del día (lo pone el administrador) */
+  function refFor(k) { var R = REG.cfg.ref || {}, x = R[k]; return x && (x.b > 0 || x.s > 0) && R.t ? { b: x.b, s: x.s, t: R.t } : null; }
   function curAnchors(rows, now) {
     var k = S.cur || 'USD', f = C(k).f, own = rows.filter(function (r) { return r.cur === k; });
     var a = EVZone.anchors(own, now);
@@ -3361,22 +3377,22 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       var w = x.k === 's' ? 'venta' : 'compra';
       return (n === 1 ? 'Tu última ' + w : 'Tus últimas ' + n + ' ' + w + 's') + ' · ' + EVZone.ago(x.ageMs || 0);
     }
-    return peopleText(n, x.offersN);
+    return '';                           // sin contar personas ni registros
   }
   function peopleText(n, offers) { return n + (n === 1 ? ' persona' : ' personas') + (offers ? ' · ' + offers + (offers === 1 ? ' oferta' : ' ofertas') : '') + ' · 24 h'; }
   function tagFor(x) {
-    return x.source === 'example' ? ['example', 'EJEMPLO'] : x.source === 'zone' ? ['zone', 'TU ZONA'] : x.source === 'own' ? ['own', 'TUS OPERACIONES'] : ['none', 'SIN DATOS'];
+    return x.source === 'example' ? ['example', 'EJEMPLO'] : x.source === 'zone' ? ['zone', 'TU ZONA'] : x.source === 'ref' ? ['ref', 'REFERENCIA'] : x.source === 'own' ? ['own', 'TUS OPERACIONES'] : ['none', 'SIN DATOS'];
   }
   function gaugeCard(x, sz) {
     var k = x.k, has = x.price != null, fin = has ? px(x.price) : '—', tg = tagFor(x);
-    var lv = !has ? 'none' : x.level || 'none', lvText = !has ? 'Sin datos' : x.level ? LV[x.level] : 'Sin referencia';
-    var dial = EVDial.svg({ k: k, scale: x.scale, bands: x.bands, fmt: function (n) { return EV.fmt(Math.round(n * 10) / 10, 1); } });
+    var lv = 'none';                      // un solo color: sin «barato / normal / caro»
+    var dial = EVDial.svg({ k: k, scale: x.scale, bands: null, fmt: function (n) { return EV.fmt(Math.round(n * 10) / 10, 1); } });
     // wait: le toca esperar su turno · run: está escaneando · done: ya tiene su precio (sin datos nace así)
     return '<div class="gcard lv-' + lv + (has ? ' wait' : ' done nodata') + '" id="g-' + k + '" data-k="' + k + '"><i class="gscan"></i>' +
       '<span class="gtag ' + tg[0] + '"><i></i>' + tg[1] + '</span><div class="gtt">' + kindTitle(k) + '</div>' +
       '<div class="gdial">' + dial + '<div class="gread"><div class="gnum' + sz + '" id="rv-' + k + '">—</div></div></div>' +
       '<div class="gu">CUP por ' + C().one + '</div>' +
-      '<div class="glev ' + lv + '"><i></i>' + lvText + '</div><div class="gmeta" id="rn-' + k + '">' + (has ? '&nbsp;' : metaText(x, 0)) + '</div></div>';
+      '<div class="gmeta" id="rn-' + k + '">' + (has ? '&nbsp;' : metaText(x, 0)) + '</div></div>';
   }
   function scanNote(ex) {
     if (SC.ownOnly) return '<div class="sc-note info"><b>Solo con tus operaciones.</b> Sin datos de ejemplo. <button data-act="scan-own">Volver a los datos de ejemplo</button></div>';
@@ -3403,14 +3419,15 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
   function sourceText(res) {
     var z = esc(zoneLabel()), src = [res.s.source, res.b.source], off = typeof navigator !== 'undefined' && navigator.onLine === false;
-    var tail = ' No se usa ninguna tasa externa.';
-    if (src.indexOf('zone') >= 0) return 'Mediana de los precios que personas de ' + z + ' registraron en las últimas 24 horas. Solo se comparte el precio: sin montos ni nombres.' + tail;
+    var tail = '';
+    if (src.indexOf('zone') >= 0 && src.indexOf('ref') < 0) return 'Mediana de los precios que personas de ' + z + ' registraron en las últimas 24 horas. Solo se comparte el precio: sin montos ni nombres.';
+    if (src.indexOf('ref') >= 0) return 'Todavía hay pocos precios de personas de ' + z + ', así que ' + (src.indexOf('zone') >= 0 ? 'una parte usa' : 'se usa') + ' el precio de referencia del día de En Verde. Cuando más gente de tu zona registre sus cambios, mandan sus precios.';
     if (src.indexOf('example') >= 0) return 'Beta: mientras no haya comunidad conectada, el escáner usa precios de ejemplo para ' + z + ' y tus operaciones.' + tail;
     if (src.indexOf('own') >= 0) return 'Usando tus últimas operaciones: ' + (off ? 'no hay conexión.' : 'todavía no hay precios de otras personas en ' + z + '.') + tail;
     return 'Todavía no hay precios para mostrar. Registra una compra o una venta y el escáner empieza con tus precios.' + tail;
   }
   function srSummary(res) {
-    function part(x, t) { return x.price == null ? t + ': sin datos todavía.' : t + ' ' + px(x.price) + ' CUP por ' + C().one + (x.level ? ', nivel ' + LV[x.level].toLowerCase() : '') + '.'; }
+    function part(x, t) { return x.price == null ? t + ': sin datos todavía.' : t + ' ' + px(x.price) + ' CUP por ' + C().one + '.'; }
     var ex = res.s.source === 'example' || res.b.source === 'example';
     return part(res.b, 'Te venden a') + ' ' + part(res.s, 'Te compran a') + (ex ? ' Son datos de ejemplo de la beta.' : '');
   }
@@ -3431,9 +3448,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var sz = gfit(Math.max(res.s.price != null ? px(res.s.price).length : 0, res.b.price != null ? px(res.b.price).length : 0));
     h += '<div class="gauges" id="sc-gauges" data-act="scan-skip" aria-hidden="true">' + gaugeCard(res.b, sz) + gaugeCard(res.s, sz) + '</div>';
     h += '<div class="sc-st" id="sc-st" aria-hidden="true"></div>';
-    h += (res.s.level || res.b.level)
-      ? '<div class="legend" aria-hidden="true"><span><i class="lv-cheap"></i>Barato</span><span><i class="lv-normal"></i>Normal</span><span><i class="lv-expensive"></i>Caro</span><em>vs. últimos 7 días</em></div>'
-      : '<div class="legend" aria-hidden="true"><em>Sin colores todavía: faltan precios de los últimos 7 días.</em></div>';
+
     h += '<div class="sentence" id="sc-sentence">' + sentenceHTML(res) + '</div>';
     h += scanNote(ex);
     h += '<p class="sc-src" id="sc-src">' + sourceText(res) + '</p>';
@@ -4076,6 +4091,30 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   }
 
   /* ---------- administración (oculta: solo la ve el correo del administrador) ---------- */
+  function refAdminHTML() {
+    var R = REG.cfg.ref || {}, D = S.adm.ref || (S.adm.ref = {}), age = R.t ? NOW() - R.t : null;
+    var h = '<p><b>Precio de referencia</b></p><p class="fine2" style="margin-top:0">Se usa en el escáner solo cuando una zona tiene pocos precios. Los usuarios lo ven como «Referencia», sin saber de dónde sale. ' +
+      (age == null ? 'Todavía no lo has puesto.' : 'Lo actualizaste ' + (age < 3600e3 ? 'hace menos de una hora' : age < 864e5 ? 'hace ' + Math.round(age / 3600e3) + ' h' : 'hace ' + Math.round(age / 864e5) + ' días') + (age > 72 * 3600e3 ? ' · <b class="neg">ya no se usa: tiene más de 3 días</b>' : '') + '.') + '</p>' +
+      '<div class="refgrid"><span></span><span class="rg-h">Te venden a</span><span class="rg-h">Te compran a</span>';
+    EV.CURS.forEach(function (c) {
+      ['b', 's'].forEach(function (k) { var key = c.k + ':' + k; if (D[key] == null) D[key] = R[c.k] && R[c.k][k] ? String(R[c.k][k]) : ''; });
+      h += '<span class="rg-n">' + c.name + '</span>' +
+        '<input data-ref="' + c.k + ':b" value="' + esc(D[c.k + ':b']) + '" inputmode="decimal" placeholder="—" aria-label="' + c.name + ': te venden a">' +
+        '<input data-ref="' + c.k + ':s" value="' + esc(D[c.k + ':s']) + '" inputmode="decimal" placeholder="—" aria-label="' + c.name + ': te compran a">';
+    });
+    return h + '</div><button class="btn primary block" data-act="ad-ref">Guardar precios de referencia</button>';
+  }
+  function refSave() {
+    var D = S.adm.ref || {}, out = { t: NOW() }, any = false;
+    EV.CURS.forEach(function (c) {
+      var b = calcNum(D[c.k + ':b'] || ''), s2 = calcNum(D[c.k + ':s'] || '');
+      if (b > 0 || s2 > 0) { out[c.k] = { b: b > 0 ? b : s2, s: s2 > 0 ? s2 : b }; any = true; }
+    });
+    if (!any) return toast({ title: 'Escribe al menos un precio', tone: 'loss', ms: 3000 });
+    var done = function () { REG.cfg.ref = out; saveReg(); memo.src = null; S.adm.ref = null; drawSheet(); toast({ title: 'Precios de referencia guardados', ms: 2500 }); };
+    if (REMOTE) return SB.rest('PATCH', 'app_config?key=eq.ref_rates', { value: JSON.stringify(out) }).then(done, function (e) { toast({ title: 'No se pudo guardar', sub: sbMsg(e), tone: 'loss', ms: 4000 }); });
+    done();
+  }
   function adminBody() {
     if (REMOTE) return rAdminBody();
     var all = accounts(), now = NOW(), cnt = { trial: 0, ok: 0, owe: 0, late: 0 }, gems = 0, rows = '';
@@ -4093,6 +4132,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       '<div><b>' + (cnt.owe + cnt.late) + '</b><span>deben</span></div><div><b>' + cnt.late + '</b><span>bloqueados</span></div><div><b>' + gems + '</b><span>gemas</span></div></div>';
     h += reportsHTML(LREP.open(), function (id) { var x = REG.list[id]; return x && !x.cancelled; });
     h += suspectsHTML();
+    h += refAdminHTML();
     h += '<p><b>Cobro por Transfermóvil</b></p><div class="aform"><label class="af" for="ad-tm"><span class="afl">Tarjeta o teléfono donde te pagan</span><input id="ad-tm" data-ad="tm" value="' + esc(S.adm.tm) + '" type="text" maxlength="40" spellcheck="false"></label></div>' +
       '<button class="btn block" data-act="ad-tm">Guardar</button>';
     h += '<p><b>Confirmar un pago en efectivo</b></p><div class="aform"><label class="af' + (S.adm.err ? ' bad' : '') + '" for="ad-cash"><span class="afl">Código que te dio la persona</span><input id="ad-cash" data-ad="cash" value="' + esc(S.adm.cash) +
@@ -4667,7 +4707,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       a.pay = {};
       (r[1] || []).forEach(function (p) { a.pay[p.month] = { m: p.method, amt: +p.amount, op: p.op_number, code: p.cash_code, st: p.status, at: ms(p.created_at) }; });
       a.gemLog = (r[2] || []).map(function (g) { return { n: g.n, why: g.why, t: ms(g.t) }; });
-      (r[3] || []).forEach(function (c) { if (c.key === 'tm_dest') REG.cfg.tm = c.value || ''; });
+      (r[3] || []).forEach(function (c) { if (c.key === 'tm_dest') REG.cfg.tm = c.value || ''; if (c.key === 'ref_rates') { try { REG.cfg.ref = JSON.parse(c.value || '{}'); } catch (e) {} } });
       saveReg();
       if (a.cancelled) { logout(); S.auth.step = 'login'; S.auth.err.top = CANCEL_MSG; render(); }
     });
@@ -4998,7 +5038,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       SB.rest('GET', 'reports?select=*&status=eq.open&order=created_at.desc&limit=100').catch(function () { return []; })
     ]).then(function (r) {
       S.adm.loading = false; S.adm.list = r[0] || []; S.adm.pend = r[1] || []; S.adm.reports = r[3] || [];
-      (r[2] || []).forEach(function (c) { if (c.key === 'tm_dest') { REG.cfg.tm = c.value || ''; if (!S.adm.tmTouched) S.adm.tm = REG.cfg.tm; } });
+      (r[2] || []).forEach(function (c) { if (c.key === 'tm_dest') { REG.cfg.tm = c.value || ''; if (!S.adm.tmTouched) S.adm.tm = REG.cfg.tm; } if (c.key === 'ref_rates') { try { REG.cfg.ref = JSON.parse(c.value || '{}'); } catch (e) {} } });
       if (S.sheet === 'admin') drawSheet();
     }, function (e) { S.adm.loading = false; S.adm.loadErr = sbMsg(e); if (S.sheet === 'admin') drawSheet(); });
   }
@@ -5030,6 +5070,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       return '<div class="fm sus"><div class="fm-t"><b>' + esc(p.nick) + '</b><span>' + esc(p.email) + '</span>' + rAdminFlags(p, all).map(function (t) { return '<span class="susr">• ' + esc(t) + '</span>'; }).join('') + '</div>' +
         '<div class="adact"><button class="btn sm danger" data-act="ad-cancel" data-u="' + p.id + '">Cancelar cuenta</button></div></div>';
     }).join('') + '</div>' : '<p class="fine2">No hay nada raro por ahora.</p>');
+    h += refAdminHTML();
     h += '<p><b>Cobro por Transfermóvil</b></p><div class="aform"><label class="af" for="ad-tm"><span class="afl">Tarjeta o teléfono donde te pagan</span><input id="ad-tm" data-ad="tm" value="' + esc(A.tm || '') + '" type="text" maxlength="40" spellcheck="false"></label></div>' +
       '<button class="btn block" data-act="ad-tm">Guardar</button>';
     h += '<p><b>Confirmar un pago en efectivo</b></p><div class="aform"><label class="af' + (A.err ? ' bad' : '') + '" for="ad-cash"><span class="afl">Código que te dio la persona</span><input id="ad-cash" data-ad="cash" value="' + esc(A.cash || '') +
@@ -5160,6 +5201,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'push-on': function () { PUSH.enable(); },
     'push-off': function () { ask({ title: 'Apagar los avisos', text: 'Dejarás de recibir avisos en este teléfono. Puedes volver a activarlos cuando quieras.', ok: 'Apagar', onOk: function () { PUSH.disable(); } }); },
     'push-later': function () { lsSet('enverde.push.later', NOW()); render(); },
+    'ad-ref': refSave,
     'ad-tm': function () { if (REMOTE) return rAdminAct('tm'); REG.cfg.tm = String(S.adm.tm || '').trim().slice(0, 40); saveReg(); toast({ title: 'Número de cobro guardado', ms: 2500 }); },
     'ad-cash': function () { if (REMOTE) return rAdminAct('cash'); S.adm.err = ''; adCash(); },
     'ad-ok': function (el) { if (REMOTE) return rAdminAct('ok', el); adSet(el, 'ok'); },
@@ -5201,6 +5243,8 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       S.pf[t.getAttribute('data-pf')] = t.value;
     } else if (t.getAttribute && t.getAttribute('data-pay') && S.pay) {
       S.pay[t.getAttribute('data-pay')] = t.value;
+    } else if (t.getAttribute && t.getAttribute('data-ref') && S.adm) {
+      (S.adm.ref || (S.adm.ref = {}))[t.getAttribute('data-ref')] = t.value;
     } else if (t.getAttribute && t.getAttribute('data-ad') && S.adm) {
       S.adm[t.getAttribute('data-ad')] = t.value; if (t.getAttribute('data-ad') === 'tm') S.adm.tmTouched = true;
     } else if (t.getAttribute && t.getAttribute('data-ofn') && S.ofn) {
