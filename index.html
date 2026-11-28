@@ -773,6 +773,22 @@ a.btn.tgbtn { display: flex; text-decoration: none; background: #229ED9; color: 
 .gmeta { min-height: 1.35em; }
 .gtag.ref { color: #5BF0A9; }
 
+/* precio de referencia (administrador) */
+.refbox { margin: 18px 0; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.rb-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rb-h b { font-size: 16.5px; }
+.rb-st { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 800; background: var(--soft); color: var(--muted); }
+.rb-st.ok { background: var(--ring); color: var(--brand); }
+.rb-st.bad { background: var(--warn-bg); color: var(--loss); }
+.rb-p { margin: 4px 0 10px; font-size: 13.5px; color: var(--muted); }
+.rb-row { display: grid; grid-template-columns: 74px 1fr 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+.rb-hd { margin-bottom: 4px; font-size: 12px; font-weight: 800; color: var(--muted); }
+.rb-hd span:not(:first-child) { text-align: center; }
+.rb-n { font-weight: 800; font-size: 15px; }
+.rb-row input { width: 100%; min-width: 0; height: 46px; padding: 0 10px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg, var(--surface)); color: var(--ink); font: inherit; font-size: 17px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; -webkit-appearance: none; appearance: none; }
+.rb-row input:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4px var(--ring); }
+.refbox .btn { margin-top: 6px; }
+
 </style>
 </head>
 <body>
@@ -2583,7 +2599,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function tabsBar() {
     var T = [['home', 'Inicio', I.home], ['offers', 'Ofertas', I.tag], ['hist', 'Historial', I.list], ['gains', 'Ganancias', I.chart], ['cfg', 'Ajustes', I.sliders]], un = unreadN();
     return '<nav class="tabs" aria-label="Secciones">' + T.map(function (t) {
-      var b = t[0] === 'offers' && un ? '<i class="tbadge" aria-label="' + un + ' mensajes sin leer">' + (un > 9 ? '9+' : un) + '</i>' : '';
+      var b = '';
       return '<button class="tab" data-act="tab" data-tab="' + t[0] + '"' + (S.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + b + '<span>' + t[1] + '</span></button>';
     }).join('') + '</nav>';
   }
@@ -4068,16 +4084,18 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   /* ---------- administración (oculta: solo la ve el correo del administrador) ---------- */
   function refAdminHTML() {
     var R = REG.cfg.ref || {}, D = S.adm.ref || (S.adm.ref = {}), age = R.t ? NOW() - R.t : null;
-    var h = '<p><b>Precio de referencia</b></p><p class="fine2" style="margin-top:0">Se usa en el escáner solo cuando una zona tiene pocos precios. Los usuarios lo ven como «Referencia», sin saber de dónde sale. ' +
-      (age == null ? 'Todavía no lo has puesto.' : 'Lo actualizaste ' + (age < 3600e3 ? 'hace menos de una hora' : age < 864e5 ? 'hace ' + Math.round(age / 3600e3) + ' h' : 'hace ' + Math.round(age / 864e5) + ' días') + (age > 72 * 3600e3 ? ' · <b class="neg">ya no se usa: tiene más de 3 días</b>' : '') + '.') + '</p>' +
-      '<div class="refgrid"><span></span><span class="rg-h">Te venden a</span><span class="rg-h">Te compran a</span>';
+    var st = age == null ? ['off', 'Sin poner'] : age > 72 * 3600e3 ? ['bad', 'Vencido'] :
+      ['ok', 'Activo · ' + (age < 3600e3 ? 'hace menos de 1 h' : age < 864e5 ? 'hace ' + Math.round(age / 3600e3) + ' h' : 'hace ' + Math.round(age / 864e5) + ' d')];
+    var h = '<div class="refbox"><div class="rb-h"><b>Precio de referencia</b><span class="rb-st ' + st[0] + '">' + st[1] + '</span></div>' +
+      '<p class="rb-p">Solo se usa cuando una zona tiene pocos precios. Vence a los 3 días.</p>' +
+      '<div class="rb-row rb-hd"><span>Moneda</span><span>Te venden a</span><span>Te compran a</span></div>';
     EV.CURS.forEach(function (c) {
       ['b', 's'].forEach(function (k) { var key = c.k + ':' + k; if (D[key] == null) D[key] = R[c.k] && R[c.k][k] ? String(R[c.k][k]) : ''; });
-      h += '<span class="rg-n">' + c.name + '</span>' +
+      h += '<div class="rb-row"><span class="rb-n">' + c.name + '</span>' +
         '<input data-ref="' + c.k + ':b" value="' + esc(D[c.k + ':b']) + '" inputmode="decimal" placeholder="—" aria-label="' + c.name + ': te venden a">' +
-        '<input data-ref="' + c.k + ':s" value="' + esc(D[c.k + ':s']) + '" inputmode="decimal" placeholder="—" aria-label="' + c.name + ': te compran a">';
+        '<input data-ref="' + c.k + ':s" value="' + esc(D[c.k + ':s']) + '" inputmode="decimal" placeholder="—" aria-label="' + c.name + ': te compran a"></div>';
     });
-    return h + '</div><button class="btn primary block" data-act="ad-ref">Guardar precios de referencia</button>';
+    return h + '<button class="btn primary block" data-act="ad-ref">Guardar</button></div>';
   }
   function refSave() {
     var D = S.adm.ref || {}, out = { t: NOW() }, any = false;
@@ -4277,7 +4295,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
           (n ? ' · ' + n + (n === 1 ? ' conversación' : ' conversaciones') : '') + '</span></div><button class="btn sm danger" data-act="of-del" data-of="' + esc(o.id) + '">Quitar</button></div>';
       }).join('') + '</div>';
     }
-    if (th.length) h += '<div class="sec-o">Mensajes</div>' + threadsHTML(th);
+    // los mensajes viven en el botón de chat de arriba
     var list = boardList();
     h += '<div class="sec-o">' + (O.side === 'sell' ? 'Venden ' + C().many + ' · más barato primero' : 'Compran ' + C().many + ' · mejor pago primero') + '</div>';
     h += list.length ? '<div class="ofs">' + list.map(function (o, i) { return offerCard(o, i === 0 && list.length > 1); }).join('') + '</div>'
