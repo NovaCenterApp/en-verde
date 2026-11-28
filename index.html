@@ -3045,10 +3045,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var e = S.entry, el = $('#e-when'); if (!el) return;
     var t = e.t != null ? e.t : NOW();
     var txt = e.t == null ? 'Ahora' : EV.fmtDay(t, NOW()) + ', ' + EV.fmtTime(t);
-    var h = '<div class="wr"><span id="e-wtxt">' + txt + '</span><span>' +
-      (e.showTime && e.mode === 'new' && e.t != null ? '<button data-act="when-now">Ahora</button>' : '') +
-      '<button data-act="when-toggle">' + (e.showTime ? 'Listo' : 'Cambiar fecha u hora') + '</button></span></div>';
-    if (e.showTime) h += '<input id="e-dt" class="dt" type="datetime-local" value="' + EV.toLocalInput(t) + '" max="' + EV.toLocalInput(NOW()) + '" aria-label="Fecha y hora">';
+    var h = '<div class="wr"><span id="e-wtxt">' + txt + '</span></div>';
     el.innerHTML = h;
   }
   function updateEntry() {
@@ -5137,8 +5134,6 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     primary: onPrimary,
     'chip-all': function () { var c = entryCalc(); S.entry.qty = rawStr(c.pv.usdBefore); if (!(EV.num(S.entry.price) > 0)) S.entry.active = 'price'; updateEntry(); },
     'chip-last': function () { var l = lastPrice(S.entry.type, S.entry.id); if (l != null) { S.entry.price = rawStr(l); updateEntry(); } },
-    'when-toggle': function () { S.entry.showTime = !S.entry.showTime; drawWhen(); },
-    'when-now': function () { S.entry.t = null; drawWhen(); updateEntry(); },
     'entry-delete': entryDelete,
     gm: function (el) { S.gm = el.getAttribute('data-m'); S.sel = null; render(); },
     bar: function (el) { S.sel = +el.getAttribute('data-i'); render(); },
