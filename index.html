@@ -87,19 +87,19 @@ h1, h2, h3, p { margin: 0; }
 .brand { display: flex; align-items: center; font-weight: 800; font-size: 21px; letter-spacing: -.01em; color: var(--ink); }
 .brand svg { width: 28px; height: 28px; margin-right: 8px; color: var(--brand); }
 .top-r { display: flex; align-items: center; }
-.pill { display: flex; align-items: center; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 999px; background: var(--soft); color: var(--muted); margin-right: 4px; }
-.pill i { width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); display: block; }
-.pill.ok i { background: var(--gain); }
-.pill.sync i { background: #D98A00; }
-.pill.bad i { background: var(--loss); }
+.pill { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; background: transparent; color: var(--muted); margin-right: 0; position: relative; }
+.pill svg { width: 21px; height: 21px; }
+.pill.ok { color: var(--gain); }
+.pill.sync { color: #D98A00; }
+.pill.sync svg { animation: wpulse 1.2s ease-in-out infinite; }
+.pill.bad { color: var(--loss); }
+@keyframes wpulse { 50% { opacity: .35; } }
 .icon-btn { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; }
 .icon-btn svg { width: 24px; height: 24px; }
 .icon-btn[aria-pressed="true"] { background: var(--soft); }
 .strip { flex: none; display: flex; padding: 0 16px 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .strip span { margin-right: 14px; }
 .strip b { color: var(--ink); font-weight: 800; }
-.demo { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 16px; background: var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-size: 13.5px; font-weight: 700; color: var(--ink); }
-.demo button { color: var(--brand); font-weight: 800; padding: 8px 12px; }
 
 /* ---------- pantallas ---------- */
 .screen { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: 18px; }
@@ -305,6 +305,7 @@ h1, h2, h3, p { margin: 0; }
 .fine { padding: 0 20px 14px; font-size: 13.5px; color: var(--muted); }
 .ver { text-align: center; font-size: 12.5px; color: var(--muted); padding: 4px 16px 8px; }
 .sheet { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; flex-direction: column; background: var(--bg); animation: up .18s ease-out; }
+.sheet.still { animation: none; }
 .sheet-top { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
 .sheet-top h2 { font-size: 19px; font-weight: 800; }
 .sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
@@ -1822,30 +1823,6 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     }));
   }
 
-  /* ---------- ejemplo para probar la app ---------- */
-
-  function demoOps(now) {
-    function at(daysAgo, h, m) {
-      var d = new Date(now); d.setDate(d.getDate() - daysAgo); d.setHours(h, m, 0, 0);
-      return daysAgo === 0 ? Math.max(sod(now) + 60000, Math.min(d.getTime(), now - 60000)) : d.getTime();
-    }
-    var spec = [
-      ['buy', 200, 980, 8, 8, 30],
-      ['sell', 100, 1000, 6, 10, 15],
-      ['buy', 150, 990, 6, 15, 40],
-      ['sell', 120, 1005, 4, 9, 20],
-      ['buy', 300, 995, 3, 8, 50],
-      ['sell', 150, 1010, 2, 11, 5],
-      ['buy', 100, 1000, 1, 9, 10],
-      ['sell', 200, 1012, 1, 16, 30],
-      ['sell', 80, 1010, 0, 8, 5]
-    ];
-    return spec.map(function (s, i) {
-      var t = at(s[3], s[4], s[5]);
-      return { id: 'demo-' + (i + 1), type: s[0], usd: s[1], price: s[2], t: t, u: t, extra: null, del: 0 };
-    });
-  }
-
   return {
     CURS: CURS, cur: cur, curOf: curOf, amt: amt,
     EPS: EPS, num: num, fmt: fmt, money: money, gain: gain, signed: signed,
@@ -1855,8 +1832,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     replay: replay, preview: preview, partialCount: partialCount,
     periodTotals: periodTotals, groupProfit: groupProfit, series: series, periodLabel: periodLabel, periodShort: periodShort,
     periodStart: periodStart, stepBack: stepBack,
-    toBook: toBook, parseBook: parseBook, shardKey: shardKey, splitShards: splitShards, sig: sig,
-    demoOps: demoOps
+    toBook: toBook, parseBook: parseBook, shardKey: shardKey, splitShards: splitShards, sig: sig
   };
 });
 
@@ -2445,7 +2421,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
 
   /* ---------- estado ---------- */
   var S = {
-    tab: 'home', mode: 'real', real: [], demo: [], hide: false, cloudOn: true,
+    tab: 'home', mode: 'real', real: [], hide: false, cloudOn: true,
     cloud: { status: 'init', at: 0, msg: '' }, gm: 'day', sel: null,
     entry: null, toast: null, dialog: null, sheet: null, dl: false, _tab: null,
     zone: null, zoneAsked: false, zoneFirst: false, zq: '', afterZone: null, share: true, scan: null,
@@ -2493,7 +2469,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function savePrefs() { lsSet(K.prefs, { hide: S.hide, cloud: S.cloudOn, zone: S.zone, zoneAsked: S.zoneAsked, share: S.share, cur: S.cur || 'USD' }); }
   function saveOb() { if (K.zone) lsSet(K.zone, { v: 1, out: OB.out, ret: OB.ret }); }
 
-  function ops() { return S.mode === 'demo' ? S.demo : S.real; }
+  function ops() { return S.real; }
   function find(id) { var l = ops(); for (var i = 0; i < l.length; i++) if (l[i].id === id && !l[i].del) return l[i]; return null; }
   function swap(id, repl) { return ops().map(function (o) { return o.id === id ? repl : o; }); }
 
@@ -2511,7 +2487,6 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
   function rowById(id) { var r = book().rows; for (var i = 0; i < r.length; i++) if (r[i].id === id) return r[i]; return null; }
 
   function commit(next) {
-    if (S.mode === 'demo') { S.demo = next; return; }
     var prev = S.real;
     if (REMOTE) markPending(next, prev);
     S.real = next; saveReal();
@@ -2592,9 +2567,11 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     var pill = '';
     if (S.mode === 'real') {
       var c = S.cloud.status, map = { ok: ['ok', 'Respaldado'], syncing: ['sync', 'Guardando…'], offline: ['sync', 'Sin conexión'], error: ['bad', 'Revisar respaldo'], na: ['', 'Solo en este teléfono'], off: ['', 'Solo en este teléfono'] };
-      if (map[c]) pill = '<button class="pill ' + map[c][0] + '" data-act="tab" data-tab="cfg"><i></i>' + map[c][1] + '</button>';
+      var wifi = '<path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.4a10 10 0 0 1 14 0"/><path d="M8.5 15.9a5 5 0 0 1 7 0"/><circle cx="12" cy="19.3" r="1" fill="currentColor"/>';
+      if (map[c] && !map[c][0]) wifi += '<path d="M3 3l18 18"/>';
+      if (map[c]) pill = '<button class="pill ' + (map[c][0] || 'none') + '" data-act="tab" data-tab="cfg" title="' + map[c][1] + '">' + svg(wifi) + '<span class="sr">' + map[c][1] + '</span></button>';
     }
-    var cp = S.mode === 'real' || S.mode === 'demo' ? '<button class="curpick" data-act="sheet-open" data-sheet="cur" aria-label="Moneda: ' + C().name + '. Cambiar">' + C().name + '<i>▾</i></button>' : '';
+    var cp = S.mode === 'real' ? '<button class="curpick" data-act="sheet-open" data-sheet="cur" aria-label="Moneda: ' + C().name + '. Cambiar">' + C().name + '<i>▾</i></button>' : '';
     return '<header class="top"><div class="brand">' + (LOGO_IMG || LOGO) + 'En Verde</div><div class="top-r">' + pill + cp +
       '<button class="icon-btn msgbtn" data-act="sheet-open" data-sheet="msgs" aria-label="Mensajes' + (unreadN() ? ', ' + unreadN() + ' sin leer' : '') + '">' + I.chat + (unreadN() ? '<i class="tbadge">' + (unreadN() > 9 ? '9+' : unreadN()) + '</i>' : '') + '</button>' +
       '<button class="icon-btn" data-act="sheet-open" data-sheet="calc" aria-label="Calculadora">' + I.calc + '</button>' +
@@ -2616,7 +2593,6 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       '<button class="bigbtn buy' + c + '" data-act="new" data-type="buy">' + (lk ? I.lock : I.down) + '<span class="t">COMPRÉ</span><span class="s">' + (lk ? 'Paga la cuota' : 'Entran ' + C().many) + '</span></button>' +
       '<button class="bigbtn sell' + c + '" data-act="new" data-type="sell">' + (lk ? I.lock : I.up) + '<span class="t">VENDÍ</span><span class="s">' + (lk ? 'Paga la cuota' : 'Salen ' + C().many) + '</span></button></div>';
   }
-  var DEMO_BAR = '<div class="demo"><span>Modo ejemplo · tus datos no se tocan</span><button data-act="demo-off">Salir</button></div>';
 
   function rowHTML(r) {
     var buy = r.type === 'buy', h = S.hide, res;
@@ -2653,8 +2629,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
       h += '<div class="empty"><h3>Empieza con tu primera operación</h3>' +
         '<p>Toca <b>COMPRÉ</b> cuando compres dólares y <b>VENDÍ</b> cuando los vendas. Escribe cuántos y a qué precio: En Verde hace las cuentas.</p>' +
         '<p>Si ya tienes dólares, regístralos con COMPRÉ al precio al que los pagaste.</p>' +
-        '<p>No te pedimos cuánto dinero tienes.</p>' +
-        '<button class="btn" data-act="demo-on">Ver cómo funciona con un ejemplo</button></div>';
+        '<p>No te pedimos cuánto dinero tienes.</p></div>';
     }
     return h + '</div>';
   }
@@ -2832,9 +2807,6 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     h += '<div class="group"><div class="gh">Ayuda</div>' + navRow('sheet-open', 'data-sheet="how"', 'Cómo se calculan las ganancias', 'Costo promedio y ganancia de cada venta.') +
       (REMOTE && !standalone() ? navRow('sheet-open', 'data-sheet="install"', 'Ponerla en la pantalla de inicio', 'Ábrela como una app, aunque no tengas internet.') : '') +
       (apkOffer() ? '<a class="set" href="' + APK_URL + '" rel="noopener"><span class="st">Descargar la app para Android<small>APK: instálala y pásala a otros por WhatsApp o Zapya</small></span>' + I.chev + '</a>' : '') + '</div>';
-    h += '<div class="group"><div class="gh">Probar</div>' + (S.mode === 'demo'
-      ? navRow('demo-off', '', 'Salir del ejemplo', 'Volver a tus operaciones.')
-      : navRow('demo-on', '', 'Ver con datos de ejemplo', 'Una semana inventada. No toca tus datos.')) + '</div>';
     h += '<p class="ver">En Verde · ' + VERSION + '</p>';
     return h + '</div>';
   }
@@ -2907,11 +2879,19 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         '<p>Si vendes dólares que no están en tus cuentas, En Verde te pregunta a cuánto los compraste. Si no lo dices, esa parte no cuenta como ganancia.</p>' +
         '<p>La semana empieza el lunes.</p>';
     }
-    $('#sheet').innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-label="' + title + '"><div class="sheet-top"><h2>' + title + '</h2>' +
+    var prev = $('#sheet .sheet'), same = prev && prev.getAttribute('data-k') === k;
+    var foc = same && document.activeElement && document.activeElement.id === 'ch-in';
+    var mb0 = same && $('#ch-msgs'), nearEnd = !mb0 || mb0.scrollHeight - mb0.scrollTop - mb0.clientHeight < 80, keepTop = mb0 ? mb0.scrollTop : 0;
+    var sbody = same && prev.querySelector('.sheet-body'), bodyTop = sbody ? sbody.scrollTop : 0;
+    $('#sheet').innerHTML = '<div class="sheet' + (same ? ' still' : '') + '" data-k="' + k + '" role="dialog" aria-modal="true" aria-label="' + title + '"><div class="sheet-top"><h2>' + title + '</h2>' +
       '<button class="icon-btn" data-act="sheet-close" aria-label="' + (k === 'zone' && S.zoneFirst ? 'Ahora no' : 'Cerrar') + '">' + I.close + '</button></div><div class="' + bodyCls + '">' + body + '</div></div>';
     if (k === 'backup') $('#tx').value = EV.toBook(S.real, NOW());
     if (k === 'zone') drawZoneList(true);
-    if (k === 'chat') { var mb = $('#ch-msgs'); if (mb) mb.scrollTop = mb.scrollHeight; }
+    if (same) { var nb = $('#sheet .sheet-body'); if (nb) nb.scrollTop = bodyTop; }
+    if (k === 'chat') {
+      var mb = $('#ch-msgs'); if (mb) mb.scrollTop = nearEnd ? mb.scrollHeight : keepTop;
+      if (foc) { var ci = $('#ch-in'); if (ci) { ci.focus(); try { ci.setSelectionRange(ci.value.length, ci.value.length); } catch (e) {} } }
+    }
     drawToast();
   }
   function copyBackup() {
@@ -3145,9 +3125,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     });
   }
 
-  /* ---------- ejemplo, borrar todo, nube ---------- */
-  function demoOn() { S.mode = 'demo'; S.demo = EV.demoOps(NOW()); S.tab = 'home'; S.sel = null; S._tab = null; render(); toast({ title: 'Estás viendo un ejemplo', sub: 'Tus datos reales no se tocan.', ms: 5000 }); }
-  function demoOff() { S.mode = 'real'; S.demo = []; S.tab = 'home'; S.sel = null; S._tab = null; render(); }
+  /* ---------- borrar todo, nube ---------- */
   function wipe() {
     ask({
       title: '¿Borrar todas tus operaciones?',
@@ -3599,7 +3577,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (a.zone && EVPlaces.get(a.zone)) { S.zone = a.zone; S.zoneAsked = true; savePrefs(); }
     else if (S.zone) { a.zone = S.zone; saveReg(); }
     if (!!a.exempt !== isAdmin(a)) { a.exempt = isAdmin(a); saveReg(); }     // solo el correo del administrador no paga cuota
-    S.mode = 'real'; S.demo = []; S.tab = 'home'; S.auth = null; memo.src = null; S.of = { side: 'sell', where: 'mun' };
+    S.mode = 'real'; S.tab = 'home'; S.auth = null; memo.src = null; S.of = { side: 'sell', where: 'mun' };
     if (!REMOTE) makeCloud(a);
     reconcileOutbox();
     render();
@@ -3609,7 +3587,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     if (REMOTE) { clearTimeout(SYNC.timer); PUSH.forget().then(function () { SB.signOut(); }, function () { SB.signOut(); }); }
     if (cloud) { try { cloud.setEnabled(false); } catch (e) {} }
     cloud = null; REG.cur = null; saveReg();
-    S.real = []; S.demo = []; S.mode = 'real'; OB = { out: {}, ret: [] }; K.real = null; K.zone = null; memo.src = null;
+    S.real = []; S.mode = 'real'; OB = { out: {}, ret: [] }; K.real = null; K.zone = null; memo.src = null;
     S.sheet = null; $('#sheet').innerHTML = ''; S.toast = null; drawToast();
     S.auth = { step: 'welcome', f: {}, err: {} };
     render();
@@ -4060,7 +4038,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return isFinite(v) && v >= 0 ? v : NaN;
   }
   function calcBody() {
-    var C = S.calc || (S.calc = { m: 'sell', q: '', p: '', c: '' }), b = EV.replay(S.mode === 'demo' ? S.demo : S.real, S.cur || 'USD'), sell = C.m === 'sell';
+    var C = S.calc || (S.calc = { m: 'sell', q: '', p: '', c: '' }), b = EV.replay(S.real, S.cur || 'USD'), sell = C.m === 'sell';
     function inp(id, key, label, ph) { return '<label class="af" for="' + id + '"><span class="afl">' + label + '</span><input id="' + id + '" data-cf="' + key + '" value="' + esc(C[key] || '') + '" type="text" inputmode="decimal" autocomplete="off" placeholder="' + ph + '"></label>'; }
     var h = '<div class="seg pm two"><button data-act="calc-m" data-m="sell"' + (sell ? ' aria-selected="true"' : '') + '>Si vendo</button><button data-act="calc-m" data-m="buy"' + (!sell ? ' aria-selected="true"' : '') + '>Si compro</button></div><div class="aform">';
     var cu = EV.cur(S.cur);
@@ -4072,7 +4050,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     return h;
   }
   function calcOut() {
-    var C = S.calc, b = EV.replay(S.mode === 'demo' ? S.demo : S.real, S.cur || 'USD'), q = calcNum(C.q), p = calcNum(C.p);
+    var C = S.calc, b = EV.replay(S.real, S.cur || 'USD'), q = calcNum(C.q), p = calcNum(C.p);
     if (!(q > 0) || !(p > 0)) return '<span class="co-h">Escribe la cantidad y el precio.</span>';
     if (C.m === 'sell') {
       var c = C.c !== '' && C.c != null ? calcNum(C.c) : (b.usd > 0 ? b.avg : NaN);
@@ -4539,7 +4517,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
         var wipe = function () {
           var k = dataKeys(a); [k.real, k.zone, BLK.key(), KOS].forEach(function (x) { if (x) { try { localStorage.removeItem(x); } catch (e) {} } });
           delete REG.list[a.id]; REG.cur = null; saveReg();
-          S.real = []; S.demo = []; S.mode = 'real'; OB = { out: {}, ret: [] }; K.real = null; K.zone = null; memo.src = null;
+          S.real = []; S.mode = 'real'; OB = { out: {}, ret: [] }; K.real = null; K.zone = null; memo.src = null;
           S.sheet = null; $('#sheet').innerHTML = ''; authInit(); render();
           toast({ title: 'Tu cuenta se borró', sub: 'Gracias por usar En Verde.', ms: 4000 });
         };
@@ -4996,10 +4974,12 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
           (r[2] || []).forEach(function (x) { read[x.chat_id] = ms(x.read_at); });
           var keepRead = (OFS.read && OFS.read[a.id]) || {};
           Object.keys(keepRead).forEach(function (k) { if (!read[k] || keepRead[k] > read[k]) read[k] = keepRead[k]; });
+          var before = JSON.stringify(OFS);
           OFS = { offers: offers, chats: map, read: {} }; OFS.read[a.id] = read;
+          var changed = JSON.stringify(OFS) !== before;
           lsSet(KOS, OFS); OFR.t = NOW(); OFR.busy = false;
           if (S.chat && map[S.chat.c.id]) S.chat.c = map[S.chat.c.id];
-          return true;
+          return changed;
         });
     }).catch(function (e) { OFR.busy = false; if (!e || !e.offline) toast({ title: 'No se pudieron cargar las ofertas', sub: sbMsg(e), tone: 'loss', ms: 3500 }); return false; });
   }
@@ -5117,7 +5097,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     S._tab = S.tab;
     if (S.tab === 'offers') loadOfs();
     var inner = S.tab === 'home' ? viewHome(b) : S.tab === 'offers' ? viewOffers() : S.tab === 'hist' ? viewHist(b) : S.tab === 'gains' ? viewGains(b) : viewCfg();
-    $('#view').innerHTML = (S.mode === 'demo' ? DEMO_BAR : '') + topbar() + (S.tab === 'home' || S.tab === 'offers' ? '' : strip(b)) + inner + (S.tab === 'home' ? dock() : '') + tabsBar();
+    $('#view').innerHTML = topbar() + (S.tab === 'home' || S.tab === 'offers' ? '' : strip(b)) + inner + (S.tab === 'home' ? dock() : '') + tabsBar();
     var s2 = $('#screen'); if (s2) s2.scrollTop = y;
     lastDay = EV.sod(NOW());
   }
@@ -5149,8 +5129,6 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'cloud-toggle': function () { S.cloudOn = !S.cloudOn; savePrefs(); cloud.setEnabled(S.cloudOn); render(); },
     'cloud-sync': function () { cloud.syncNow(); },
     'cloud-del': cloudDelete,
-    'demo-on': demoOn,
-    'demo-off': demoOff,
     wipe: wipe,
     'scan-open': openScan,
     'scan-close': closeScan,
@@ -5173,7 +5151,7 @@ window.EV_CONFIG = {"url":"https://utbfhjsexkusjjcxycwp.supabase.co","key":"sb_p
     'pay-m': function (el) { S.pay.m = el.getAttribute('data-m'); S.pay.err = ''; drawSheet(); },
     'pay-tm': payTm, 'pay-cash': payCash, 'pay-gems': payGems,
     'calc-m': function (el) { S.calc.m = el.getAttribute('data-m'); drawSheet(); },
-    'calc-avg': function () { var b = EV.replay(S.mode === 'demo' ? S.demo : S.real, S.cur || 'USD'); S.calc.c = String(Math.round(b.avg * 100) / 100); drawSheet(); },
+    'calc-avg': function () { var b = EV.replay(S.real, S.cur || 'USD'); S.calc.c = String(Math.round(b.avg * 100) / 100); drawSheet(); },
     'ad-reload': function () { S.adm.loadErr = ''; S.adm.list = null; drawSheet(); },
     'terms-tick': function () { var A = S.auth; A.f.terms = !A.f.terms; if (A.f.terms) delete A.err.terms; render(); },
     'terms-ok': termsAccept,
